@@ -1,0 +1,23 @@
+version: '3.8'
+services:
+  db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: purchase
+      POSTGRES_PASSWORD: purchase
+      POSTGRES_DB: purchase_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  seq:
+    image: datalust/seq:2024.1
+    ports:
+      - "5341:80"
+    volumes:
+      - seqdata:/data
+
+volumes:
+  pgdata:
+  seqdata:
