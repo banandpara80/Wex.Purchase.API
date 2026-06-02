@@ -1,6 +1,8 @@
 ﻿using Serilog;
+using System.ComponentModel.DataAnnotations;
 using Wex.Purchase.BusinessModels;
 using Wex.Purchase.Manager;
+using Wex.Purchase.Common.Exceptions;
 
 namespace Wex.Purchase.Service
 {
@@ -30,6 +32,16 @@ namespace Wex.Purchase.Service
         /// <returns>The added purchase with generated metadata.</returns>
         public async Task<PurchaseDTO> AddPurchase(PurchaseDTO purchaseDTO)
         {
+            // Validate incoming DTO
+            var validationContext = new ValidationContext(purchaseDTO);
+            var validationResults = new List<ValidationResult>();
+
+            if (!Validator.TryValidateObject(purchaseDTO, validationContext, validationResults, true))
+            {
+                var errors = validationResults.Select(r => r.ErrorMessage).Where(m => !string.IsNullOrEmpty(m)).ToList();
+                throw new PurchaseValidationException("Purchase validation failed", errors);
+            }
+
             return await purchaseManager.AddPurchase(purchaseDTO);
         }
 
@@ -50,6 +62,13 @@ namespace Wex.Purchase.Service
         /// <returns>A collection of purchase DTOs matching the criteria.</returns>
         public async Task<IList<PurchaseDTO>> GetPurchaseTransactions(PurchaseRequestDTO purchaseRequestDTO)
         {
+            if (purchaseRequestDTO == null)
+                throw new PurchaseValidationException("Purchase request cannot be null");
+
+            // Basic request validation
+            if (purchaseRequestDTO.Ids == null || purchaseRequestDTO.Ids.Length == 0)
+                return new List<PurchaseDTO>();
+
             return await purchaseManager.GetPurchaseTransactions(purchaseRequestDTO);
         }
     }

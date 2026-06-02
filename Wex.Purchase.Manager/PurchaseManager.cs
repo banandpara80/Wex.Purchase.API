@@ -2,7 +2,9 @@
 using Wex.Purchase.Manager.EntityMapper;
 using Wex.Purchase.Repository;
 using Wex.Purchase.Repository.Entity;
+using Wex.Purchase.Common.Exceptions;
 using Serilog;
+
 namespace Wex.Purchase.Manager
 {
     /// <summary>
@@ -30,17 +32,20 @@ namespace Wex.Purchase.Manager
         /// <returns>The added purchase with generated metadata.</returns>
         public async Task<PurchaseDTO> AddPurchase(PurchaseDTO purchaseDTO)
         {
-            PurchaseBO purchaseBO = new PurchaseBO
+            // Ensure PurchaseAmount is rounded to nearest cent before persisting (AwayFromZero)
+            purchaseDTO.PurchaseAmount = decimal.Round(purchaseDTO.PurchaseAmount, 2, MidpointRounding.AwayFromZero);
+
+            PurchaseBO purchaseBO = PurchaseMapper.MapToPurchaseBO(purchaseDTO);
+
+            try
             {
-                Id = Guid.NewGuid(), //purchaseDTO.Id,
-                PurchaseAmount = 1.00m, //purchaseDTO.PurchaseAmount,
-                Description = "Test", //purchaseDTO.Description,
-                TransactionDate = DateOnly.FromDateTime(DateTime.Now.AddDays(1)) //purchaseDTO.TransactionDate,
-            };
-
-            purchaseBO = PurchaseMapper.MapToPurchaseBO(purchaseDTO);
-
-            await purchaseRepository.AddAsync(purchaseBO, new CancellationToken());
+                await purchaseRepository.AddAsync(purchaseBO, new CancellationToken());
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Error saving purchase to repository");
+                throw new PurchaseDatabaseException("Failed to save purchase", ex);
+            }
 
             purchaseDTO = purchaseBO.MapToPurchaseDTO();
 
@@ -63,10 +68,19 @@ namespace Wex.Purchase.Manager
         /// <returns>A collection of purchase DTOs matching the criteria.</returns>
         public async Task<IList<PurchaseDTO>> GetPurchaseTransactions(PurchaseRequestDTO purchaseRequestDTO)
         {
-            IList<PurchaseBO> puchaseTransactions =  await purchaseRepository.GetPurchaseTransactions(purchaseRequestDTO.Ids, new CancellationToken());
+            IList<PurchaseBO> puchaseTransactions;
+            try
+            {
+                puchaseTransactions = await purchaseRepository.GetPurchaseTransactions(purchaseRequestDTO.Ids, new CancellationToken());
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Failed to retrieve purchase transactions from repository");
+                throw new PurchaseDatabaseException("Failed to retrieve purchase transactions", ex);
+            }
 
             IList<PurchaseDTO> purchases = PurchaseMapper.MapToPurchaseDTOs(puchaseTransactions);
-            
+
             return purchases;
         }
     }

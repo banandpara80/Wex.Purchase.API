@@ -1,6 +1,6 @@
 using Serilog;
 
-namespace Wex.Purchase.API.Exceptions;
+namespace Wex.Purchase.Common.Exceptions;
 
 /// <summary>
 /// Custom exception classes for the purchase API.

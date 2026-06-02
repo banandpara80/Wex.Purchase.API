@@ -6,6 +6,8 @@ using Wex.Purchase.Service;
 using Xunit;
 using Serilog;
 using Serilog.Core;
+using Wex.Purchase.Common.Exceptions;
+using System.Collections.Generic;
 
 namespace Wex.Purchase.Unit.Tests.Controllers;
 
@@ -45,5 +47,25 @@ public class PurchaseControllerTests
 
         var actionResult = Assert.IsType<ActionResult<IEnumerable<PurchaseDTO>>>(result);
         Assert.NotNull(actionResult.Value);
+    }
+
+    [Fact]
+    public async Task AddPurchase_ServiceThrowsValidationException_Propagates()
+    {
+        _purchaseServiceMock.Setup(s => s.AddPurchase(It.IsAny<PurchaseDTO>())).ThrowsAsync(new PurchaseValidationException("validation failed", new List<string>{"err"}));
+
+        var controller = new PurchaseController(Logger.None, _purchaseServiceMock.Object);
+
+        await Assert.ThrowsAsync<PurchaseValidationException>(async () => await controller.AddPurchase(new PurchaseDTO { Description = "Test" }));
+    }
+
+    [Fact]
+    public async Task GetPurchaseTransactions_ServiceThrowsValidationException_Propagates()
+    {
+        _purchaseServiceMock.Setup(s => s.GetPurchaseTransactions(It.IsAny<PurchaseRequestDTO>())).ThrowsAsync(new PurchaseValidationException("validation failed", new List<string>{"err"}));
+
+        var controller = new PurchaseController(Logger.None, _purchaseServiceMock.Object);
+
+        await Assert.ThrowsAsync<PurchaseValidationException>(async () => await controller.GetPurchaseTransactionss(new PurchaseRequestDTO { Ids = new Guid[] { Guid.NewGuid() }, Currency = new string[] { "USD" } }));
     }
 }

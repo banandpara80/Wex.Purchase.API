@@ -14,12 +14,13 @@ namespace Wex.Purchase.Repository.Entity
         /// <summary>
         /// Gets or sets the unique identifier of the purchase.
         /// </summary>
-        [Key]
         public Guid Id { get; set; }
 
         /// <summary>
         /// Gets or sets the description of the purchase.
         /// </summary>
+        [System.ComponentModel.DataAnnotations.StringLength(50, ErrorMessage = "Description cannot exceed 50 characters.")]
+        [System.ComponentModel.DataAnnotations.Required]
         public required string Description { get; set; }
 
         /// <summary>

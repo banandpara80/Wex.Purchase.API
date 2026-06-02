@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Diagnostics;
 using Serilog;
-using Wex.Purchase.API.Exceptions;
 using Wex.Purchase.API.Middleware;
+using Wex.Purchase.Common.Exceptions;
 
 namespace Wex.Purchase.API.Extensions;
 

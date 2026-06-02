@@ -16,11 +16,13 @@
     <PackageReference Include="Serilog.Sinks.File" Version="7.0.0" />
     <PackageReference Include="Serilog.Sinks.Seq" Version="9.1.0" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="10.2.0" />
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.NewtonsoftJson" Version="10.0.8" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\Wex.Purchase.API.ServiceDefaults\Wex.Purchase.API.ServiceDefaults.csproj" />
     <ProjectReference Include="..\Wex.Purchase.BusinessModels\Wex.Purchase.BusinessModels.csproj" />
+    <ProjectReference Include="..\Wex.Purchase.Common\Wex.Purchase.Common.csproj" />
     <ProjectReference Include="..\Wex.Purchase.Service\Wex.Purchase.Service.csproj" />
   </ItemGroup>
 

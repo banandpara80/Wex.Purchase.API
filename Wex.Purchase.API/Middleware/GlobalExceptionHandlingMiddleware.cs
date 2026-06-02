@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Serilog;
 using System.Text.Json;
+using Wex.Purchase.Common.Exceptions;
 
 namespace Wex.Purchase.API.Middleware;
 
@@ -45,7 +46,7 @@ public class GlobalExceptionHandlingMiddleware
 
         switch (exception)
         {
-            case Exceptions.PurchaseNotFoundException notFoundEx:
+            case PurchaseNotFoundException notFoundEx:
                 context.Response.StatusCode = StatusCodes.Status404NotFound;
                 response.Status = StatusCodes.Status404NotFound;
                 response.Title = "Purchase Not Found";
@@ -53,7 +54,7 @@ public class GlobalExceptionHandlingMiddleware
                 Log.Information("Purchase not found exception. PurchaseId: {@PurchaseId}", notFoundEx.PurchaseId);
                 break;
 
-            case Exceptions.PurchaseValidationException validationEx:
+            case PurchaseValidationException validationEx:
                 context.Response.StatusCode = StatusCodes.Status400BadRequest;
                 response.Status = StatusCodes.Status400BadRequest;
                 response.Title = "Validation Failed";
@@ -62,7 +63,7 @@ public class GlobalExceptionHandlingMiddleware
                 Log.Warning("Validation exception. Errors: {@Errors}", validationEx.Errors);
                 break;
 
-            case Exceptions.PurchaseDatabaseException dbEx:
+            case PurchaseDatabaseException dbEx:
                 context.Response.StatusCode = StatusCodes.Status500InternalServerError;
                 response.Status = StatusCodes.Status500InternalServerError;
                 response.Title = "Database Error";
@@ -70,7 +71,7 @@ public class GlobalExceptionHandlingMiddleware
                 Log.Error(dbEx, "Database exception occurred");
                 break;
 
-            case Exceptions.PurchaseApplicationException appEx:
+            case PurchaseApplicationException appEx:
                 context.Response.StatusCode = StatusCodes.Status400BadRequest;
                 response.Status = StatusCodes.Status400BadRequest;
                 response.Title = "Application Error";

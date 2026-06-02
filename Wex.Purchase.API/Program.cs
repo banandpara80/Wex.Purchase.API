@@ -22,8 +22,17 @@ public class Program
 
         builder.AddServiceDefaults();
 
-        // Add services to the container.
-        builder.Services.AddControllers();
+        // Add services to the container with JSON options for DateOnly
+        builder.Services.AddControllers()
+            .AddJsonOptions(opts =>
+            {
+                opts.JsonSerializerOptions.Converters.Add(new Wex.Purchase.API.Json.DateOnlyJsonConverter());
+            })
+            .AddNewtonsoftJson(opts =>
+            {
+                // Register a simple converter for DateOnly when using Newtonsoft
+                opts.SerializerSettings.Converters.Add(new Newtonsoft.Json.Converters.IsoDateTimeConverter());
+            });
         builder.Services.AddEndpointsApiExplorer();
         builder.Services.AddSwaggerGen();
         // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi

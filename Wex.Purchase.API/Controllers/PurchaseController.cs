@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Wex.Purchase.BusinessModels;
 using Wex.Purchase.Service;
 using ILogger = Serilog.ILogger;
+// Using global JSON options configured in Program.cs
 namespace Wex.Purchase.API.Controllers;
 
 /// <summary>
@@ -52,14 +53,11 @@ public class PurchaseController : ControllerBase
     public async Task<ActionResult<PurchaseDTO>> AddPurchase([FromBody] PurchaseDTO purchaseDTO)
     {
         Logger.Information("Adding purchase");
+        if (purchaseDTO == null)
+            return BadRequest();
 
-        purchaseDTO = new PurchaseDTO
-        {
-            Id = Guid.NewGuid(),
-            PurchaseAmount = 1.0M,
-            Description = "Test Purchase",
-            TransactionDate = DateOnly.FromDateTime(DateTime.Now)
-        };
+        if (purchaseDTO.Id == Guid.Empty)
+            purchaseDTO.Id = Guid.NewGuid();
 
         purchaseDTO = await purchaseService.AddPurchase(purchaseDTO);
 
