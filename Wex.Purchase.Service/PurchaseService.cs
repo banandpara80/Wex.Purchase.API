@@ -1,4 +1,5 @@
-﻿using Wex.Purchase.BusinessModels;
+﻿using Serilog;
+using Wex.Purchase.BusinessModels;
 using Wex.Purchase.Manager;
 
 namespace Wex.Purchase.Service
@@ -10,13 +11,15 @@ namespace Wex.Purchase.Service
     public class PurchaseService : IPurchaseService
     {
         private readonly IPurchaseManager purchaseManager;
+        private readonly ILogger Logger;
 
         /// <summary>
         /// Initializes a new instance of the PurchaseService class.
         /// </summary>
         /// <param name="purchaseManager">The purchase manager for business logic operations.</param>
-        public PurchaseService(IPurchaseManager purchaseManager)
+        public PurchaseService(ILogger logger, IPurchaseManager purchaseManager)
         {
+            this.Logger = logger;
             this.purchaseManager = purchaseManager;
         }
 
@@ -28,6 +31,16 @@ namespace Wex.Purchase.Service
         public async Task<PurchaseDTO> AddPurchase(PurchaseDTO purchaseDTO)
         {
             return await purchaseManager.AddPurchase(purchaseDTO);
+        }
+
+        /// <summary>
+        /// Retrieves purchase transaction based on order id.
+        /// </summary>
+        /// <param name="id">Purchase Id</param>
+        /// <returns>Purchase DTO matching the criteria.</returns>
+        public Task<PurchaseDTO> GetPurchaseOrderById(Guid id)
+        {
+            throw new NotImplementedException();
         }
 
         /// <summary>

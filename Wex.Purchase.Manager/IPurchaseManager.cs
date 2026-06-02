@@ -19,6 +19,13 @@ namespace Wex.Purchase.Manager
         Task<PurchaseDTO> AddPurchase(PurchaseDTO purchaseDTO);
 
         /// <summary>
+        /// Retrieves purchase transaction based on order id.
+        /// </summary>
+        /// <param name="id">Purchase Id</param>
+        /// <returns>Purchase DTO matching the criteria.</returns>
+        Task<PurchaseDTO> GetPurchaseOrderById(Guid id);
+
+        /// <summary>
         /// Retrieves purchase transactions based on specified criteria.
         /// </summary>
         /// <param name="purchaseRequestDTO">The filtering criteria for purchases.</param>

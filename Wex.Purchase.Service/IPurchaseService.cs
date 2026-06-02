@@ -24,5 +24,13 @@ namespace Wex.Purchase.Service
         /// <param name="purchaseRequestDTO">The filtering criteria for purchases.</param>
         /// <returns>A collection of purchase DTOs matching the criteria.</returns>
         Task<IList<PurchaseDTO>> GetPurchaseTransactions(PurchaseRequestDTO purchaseRequestDTO);
+
+
+        /// <summary>
+        /// Retrieves purchase transaction based on order id.
+        /// </summary>
+        /// <param name="id">Purchase Id</param>
+        /// <returns>Purchase DTO matching the criteria.</returns>
+        Task<PurchaseDTO> GetPurchaseOrderById(Guid id);
     }
 }

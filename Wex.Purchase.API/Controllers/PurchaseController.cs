@@ -1,8 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Logging;
 using Wex.Purchase.BusinessModels;
 using Wex.Purchase.Service;
-
+using ILogger = Serilog.ILogger;
 namespace Wex.Purchase.API.Controllers;
 
 /// <summary>
@@ -15,7 +14,7 @@ namespace Wex.Purchase.API.Controllers;
 [Produces("application/json")]
 public class PurchaseController : ControllerBase
 {
-    private readonly ILogger<PurchaseController> logger;
+    private readonly ILogger Logger;
     private readonly IPurchaseService purchaseService;
 
     /// <summary>
@@ -23,30 +22,25 @@ public class PurchaseController : ControllerBase
     /// </summary>
     /// <param name="logger">Logger instance for logging controller operations.</param>
     /// <param name="purchaseService">Service instance for managing purchase operations.</param>
-    public PurchaseController(ILogger<PurchaseController> logger, IPurchaseService purchaseService)
+    public PurchaseController(ILogger logger, IPurchaseService purchaseService)
     {
-        this.logger = logger;
+        Logger = logger;
         this.purchaseService = purchaseService;
     }
 
     /// <summary>
-    /// Retrieves a list of purchase transactions.
+    /// Retrieves purchase transaction based on order id.
     /// </summary>
-    /// <returns>A collection of purchase DTOs.</returns>
-    [HttpGet(Name = "purchase")]
-    public Task<ActionResult<IEnumerable<PurchaseDTO>>> Get()
+    /// <param name="id">Purchase Id</param>
+    /// <returns>Purchase DTO matching the criteria.</returns>
+    [HttpGet(Name = "purchase/{id:guid}")]
+    public async Task<ActionResult<PurchaseDTO>> Get(Guid id)
     {
-        this.logger.LogInformation("Getting purchases");
+        Logger.Information("Getting purchases");
 
-        var list = Enumerable.Range(1, 1).Select(index => new PurchaseDTO
-        {
-            Id = Guid.NewGuid(),
-            PurchaseAmount = 1.0M,
-            Description = "Test Purchase",
-            TransactionDate = DateOnly.FromDateTime(DateTime.Now.AddDays(index))
-        });
+        PurchaseDTO purchaseDTO = await purchaseService.GetPurchaseOrderById(id);
 
-        return Task.FromResult(new ActionResult<IEnumerable<PurchaseDTO>>(list));
+        return Ok(purchaseDTO);
     }
 
     /// <summary>
@@ -57,7 +51,7 @@ public class PurchaseController : ControllerBase
     [HttpPost(Name = "purchase")]
     public async Task<ActionResult<PurchaseDTO>> AddPurchase([FromBody] PurchaseDTO purchaseDTO)
     {
-        this.logger.LogInformation("Adding purchase");
+        Logger.Information("Adding purchase");
 
         purchaseDTO = new PurchaseDTO
         {

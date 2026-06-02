@@ -28,7 +28,6 @@ namespace Wex.Purchase.Repository
         /// <returns>A task representing the asynchronous operation.</returns>
         public async Task AddAsync(PurchaseBO purchase, CancellationToken cancellationToken = default)
         {
-            PurchaseBO p; 
             await _db.Purchases.AddAsync(purchase, cancellationToken);
             try
             {
@@ -69,9 +68,9 @@ namespace Wex.Purchase.Repository
         /// <param name="ids">Array of purchase IDs to retrieve.</param>
         /// <param name="cancellationToken">Cancellation token for the async operation.</param>
         /// <returns>A list of purchase entities matching the specified IDs.</returns>
-        public async Task<IList<PurchaseBO>> GetPurchaseTransactions(string[] ids, CancellationToken cancellationToken = default)
+        public async Task<IList<PurchaseBO>> GetPurchaseTransactions(Guid[] ids, CancellationToken cancellationToken = default)
         {
-            return await _db.Purchases.Where(p => ids.Contains(p.Id.ToString())).ToListAsync(cancellationToken);
+            return await _db.Purchases.Where(p => ids.Contains(p.Id)).ToListAsync(cancellationToken);
         }
     }
 }

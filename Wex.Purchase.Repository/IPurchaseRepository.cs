@@ -40,6 +40,6 @@ namespace Wex.Purchase.Repository
         /// <param name="ids">Array of purchase IDs to retrieve.</param>
         /// <param name="cancellationToken">Cancellation token for the async operation.</param>
         /// <returns>A list of purchase entities matching the specified IDs.</returns>
-        Task<IList<PurchaseBO>> GetPurchaseTransactions(string[] ids, CancellationToken cancellationToken = default);
+        Task<IList<PurchaseBO>> GetPurchaseTransactions(Guid[] ids, CancellationToken cancellationToken = default);
     }
 }

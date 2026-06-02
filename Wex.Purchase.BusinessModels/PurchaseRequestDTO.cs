@@ -13,11 +13,11 @@ namespace Wex.Purchase.BusinessModels
         /// <summary>
         /// Gets or sets the array of purchase IDs to retrieve.
         /// </summary>
-        public string[] Ids { get; set; }
+        public required Guid[] Ids { get; set; }
 
         /// <summary>
         /// Gets or sets the array of currency codes for filtering.
         /// </summary>
-        public string[] Currency { get; set; }
+        public required string[] Currency { get; set; }
     }
 }

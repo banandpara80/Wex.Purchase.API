@@ -16,6 +16,11 @@ COPY ["Wex.Purchase.API/Wex.Purchase.API.csproj", "Wex.Purchase.API/"]
 COPY ["Wex.Purchase.API.ServiceDefaults/Wex.Purchase.API.ServiceDefaults.csproj", "Wex.Purchase.API.ServiceDefaults/"]
 RUN dotnet restore "./Wex.Purchase.API/Wex.Purchase.API.csproj"
 COPY . .
+
+# Run unit tests early in the build to fail fast on regressions
+WORKDIR "/src"
+RUN dotnet test "Wex.Purchase.Unit.Tests/Wex.Purchase.Unit.Tests.csproj" -c $BUILD_CONFIGURATION --no-build || (echo "Unit tests failed" && exit 1)
+
 WORKDIR "/src/Wex.Purchase.API"
 RUN dotnet build "./Wex.Purchase.API.csproj" -c $BUILD_CONFIGURATION -o /app/build
 

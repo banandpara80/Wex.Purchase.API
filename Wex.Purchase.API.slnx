@@ -6,5 +6,5 @@
   <Project Path="Wex.Purchase.Manager/Wex.Purchase.Manager.csproj" Id="2ecd87cb-6424-4558-bed7-172d22a2db09" />
   <Project Path="Wex.Purchase.Repository/Wex.Purchase.Repository.csproj" Id="c7a8a96e-9ddc-4fa0-92a2-01c1fcb10838" />
   <Project Path="Wex.Purchase.Service/Wex.Purchase.Service.csproj" Id="2901639f-6342-4c2a-90ce-b53427c5ce05" />
-  <Project Path="Wex.Purchase.Tests/Wex.Purchase.Unit.Tests.csproj" />
+  <Project Path="Wex.Purchase.Unit.Tests/Wex.Purchase.Unit.Tests.csproj" />
 </Solution>

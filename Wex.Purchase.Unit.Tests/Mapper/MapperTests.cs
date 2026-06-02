@@ -1,10 +1,9 @@
 using System;
 using Xunit;
-using Wex.Purchase.Manager.EntityMapper;
 using Wex.Purchase.Repository.Entity;
 using Wex.Purchase.BusinessModels;
 
-namespace Wex.Purchase.Tests;
+namespace Wex.Purchase.Manager.EntityMapper.Tests;
 
 public class MapperTests
 {
