@@ -9,6 +9,8 @@ using OpenTelemetry;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Trace;
 using Wex.Purchase.Manager;
+using Wex.Purchase.Manager.ExchangeRate;
+using Wex.Purchase.Manager.ExchangeRateConversion;
 using Wex.Purchase.Repository;
 using Wex.Purchase.Service;
 
@@ -147,8 +149,19 @@ public static class Extensions
         });
 
         services.AddScoped<IPurchaseService, PurchaseService>();
-        services.AddScoped<Wex.Purchase.Manager.IPurchaseManager, PurchaseManager>();
-        services.AddScoped<Wex.Purchase.Repository.IPurchaseRepository, PurchaseRepository>();
+        services.AddScoped<IPurchaseManager, PurchaseManager>();
+
+        // Register concrete repository and then a decorator to enable global exception handling
+        services.AddScoped<PurchaseRepository>();
+        services.AddScoped<IPurchaseRepository>(sp =>
+        {
+            var real = sp.GetRequiredService<PurchaseRepository>();
+            return new Wex.Purchase.Repository.Exceptions.PurchaseRepositoryDecorator(real);
+        });
+
+        // Register Treasury Exchange Rate API client and conversion service
+        services.AddHttpClient<ITreasuryExchangeRateClient, TreasuryExchangeRateClient>();
+        services.AddScoped<IExchangeRateConversionService, ExchangeRateConversionService>();
 
         return services;
     }

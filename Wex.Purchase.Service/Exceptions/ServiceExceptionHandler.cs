@@ -5,75 +5,80 @@ namespace Wex.Purchase.Service.Exceptions;
 /// <summary>
 /// Exception handler utility for service layer operations.
 /// Provides centralized exception handling with Serilog logging for business logic errors.
-/// Wraps service operations with try-catch logic to capture and log exceptions at the business logic layer.
+/// Handles both regular exceptions and OperationCanceledException for proper cancellation token support.
+/// This implementation is injectable so services can depend on the handler via DI.
 /// </summary>
-public static class ServiceExceptionHandler
+public class ServiceExceptionHandler : IServiceExceptionHandler
 {
-    public delegate Task<T> ServiceOperation<T>();
+    ILogger logger;
+    public ServiceExceptionHandler(ILogger logger)
+    {
+        this.logger = logger;
+    }
 
     /// <summary>
-    /// Executes a service operation with exception handling and Serilog logging.
+    /// Executes a service operation with exception handling, including cancellation support.
     /// </summary>
-    /// <typeparam name="T">The return type of the operation.</typeparam>
-    /// <param name="operation">The service operation to execute.</param>
-    /// <param name="operationName">The name of the operation for logging purposes.</param>
-    /// <returns>The result of the operation or throws a wrapped exception.</returns>
-    public static async Task<T> ExecuteWithExceptionHandling<T>(
-        ServiceOperation<T> operation,
-        string operationName)
+    public async Task<T> ExecuteWithExceptionHandling<T>(Func<CancellationToken, Task<T>> operation, string operationName, CancellationToken cancellationToken = default)
     {
         try
         {
-            Log.Information("Service operation starting: {@OperationName}", operationName);
-            var result = await operation();
-            Log.Information("Service operation completed successfully: {@OperationName}", operationName);
+            logger.Information("Service operation starting: {@OperationName}", operationName);
+            var result = await operation(cancellationToken);
+            logger.Information("Service operation completed successfully: {@OperationName}", operationName);
             return result;
+        }
+        catch (OperationCanceledException ex)
+        {
+            logger.Warning(ex, "Service operation cancelled: {@OperationName}", operationName);
+            throw;
         }
         catch (ArgumentNullException ex)
         {
-            Log.Error(ex, "Null argument in service operation {@OperationName}, Parameter: {@ParamName}", operationName, ex.ParamName);
+            logger.Error(ex, "Null argument in service operation {@OperationName}, Parameter: {@ParamName}", operationName, ex.ParamName);
             throw;
         }
         catch (ArgumentException ex)
         {
-            Log.Error(ex, "Invalid argument in service operation {@OperationName}: {@Message}", operationName, ex.Message);
+            logger.Error(ex, "Invalid argument in service operation {@OperationName}: {@Message}", operationName, ex.Message);
             throw;
         }
         catch (InvalidOperationException ex)
         {
-            Log.Error(ex, "Invalid operation in service {@OperationName}: {@Message}", operationName, ex.Message);
+            logger.Error(ex, "Invalid operation in service {@OperationName}: {@Message}", operationName, ex.Message);
             throw;
         }
         catch (Exception ex)
         {
-            Log.Error(ex, "Unexpected error in service operation {@OperationName}: {@Message}", operationName, ex.Message);
+            logger.Error(ex, "Unexpected error in service operation {@OperationName}: {@Message}", operationName, ex.Message);
             throw new InvalidOperationException($"Service operation '{operationName}' failed: {ex.Message}", ex);
         }
     }
 
     /// <summary>
-    /// Executes a void service operation with exception handling and Serilog logging.
+    /// Executes a void service operation with exception handling and cancellation support.
     /// </summary>
-    /// <param name="operation">The service operation to execute.</param>
-    /// <param name="operationName">The name of the operation for logging purposes.</param>
-    public static async Task ExecuteWithExceptionHandling(
-        Func<Task> operation,
-        string operationName)
+    public async Task ExecuteWithExceptionHandling(Func<CancellationToken, Task> operation, string operationName, CancellationToken cancellationToken = default)
     {
         try
         {
-            Log.Information("Service operation (void) starting: {@OperationName}", operationName);
-            await operation();
-            Log.Information("Service operation (void) completed successfully: {@OperationName}", operationName);
+            logger.Information("Service operation (void) starting: {@OperationName}", operationName);
+            await operation(cancellationToken);
+            logger.Information("Service operation (void) completed successfully: {@OperationName}", operationName);
+        }
+        catch (OperationCanceledException ex)
+        {
+            logger.Warning(ex, "Service operation (void) cancelled: {@OperationName}", operationName);
+            throw;
         }
         catch (ArgumentNullException ex)
         {
-            Log.Error(ex, "Null argument in void service operation {@OperationName}, Parameter: {@ParamName}", operationName, ex.ParamName);
+            logger.Error(ex, "Null argument in void service operation {@OperationName}, Parameter: {@ParamName}", operationName, ex.ParamName);
             throw;
         }
         catch (Exception ex)
         {
-            Log.Error(ex, "Error in void service operation {@OperationName}: {@Message}", operationName, ex.Message);
+            logger.Error(ex, "Error in void service operation {@OperationName}: {@Message}", operationName, ex.Message);
             throw;
         }
     }

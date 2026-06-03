@@ -50,4 +50,39 @@ public static class RepositoryExceptionHandler
             throw new InvalidOperationException($"Repository operation '{operationName}' failed unexpectedly: {ex.Message}", ex);
         }
     }
+
+    /// <summary>
+    /// Executes a void repository operation (Task) with exception handling and Serilog logging.
+    /// </summary>
+    /// <param name="operation">The repository operation to execute.</param>
+    /// <param name="operationName">The name of the operation for logging purposes.</param>
+    public static async Task ExecuteWithExceptionHandling(Func<Task> operation, string operationName)
+    {
+        try
+        {
+            Log.Information("Repository operation starting: {@OperationName}", operationName);
+            await operation();
+            Log.Information("Repository operation completed successfully: {@OperationName}", operationName);
+        }
+        catch (InvalidOperationException ex)
+        {
+            Log.Error(ex, "Invalid operation in repository {@OperationName}: {@Message}", operationName, ex.Message);
+            throw new InvalidOperationException($"Repository operation '{operationName}' failed: {ex.Message}", ex);
+        }
+        catch (ArgumentNullException ex)
+        {
+            Log.Error(ex, "Null argument in repository operation {@OperationName}, Parameter: {@ParamName}", operationName, ex.ParamName);
+            throw new ArgumentNullException(ex.ParamName, $"Repository operation '{operationName}' received null argument: {ex.Message}");
+        }
+        catch (System.Data.Common.DbException dbEx)
+        {
+            Log.Error(dbEx, "Database exception in repository operation {@OperationName}: {@Message}", operationName, dbEx.Message);
+            throw new InvalidOperationException($"Database error in repository operation '{operationName}': {dbEx.Message}", dbEx);
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Unexpected error in repository operation {@OperationName}: {@Message}", operationName, ex.Message);
+            throw new InvalidOperationException($"Repository operation '{operationName}' failed unexpectedly: {ex.Message}", ex);
+        }
+    }
 }

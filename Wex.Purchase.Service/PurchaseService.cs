@@ -29,8 +29,9 @@ namespace Wex.Purchase.Service
         /// Adds a new purchase to the system.
         /// </summary>
         /// <param name="purchaseDTO">The purchase data to add.</param>
+        /// <param name="cancellationToken">Cancellation token for the async operation.</param>
         /// <returns>The added purchase with generated metadata.</returns>
-        public async Task<PurchaseDTO> AddPurchase(PurchaseDTO purchaseDTO)
+        public async Task<PurchaseDTO> AddPurchase(PurchaseDTO purchaseDTO, CancellationToken cancellationToken = default)
         {
             // Validate incoming DTO
             var validationContext = new ValidationContext(purchaseDTO);
@@ -42,34 +43,41 @@ namespace Wex.Purchase.Service
                 throw new PurchaseValidationException("Purchase validation failed", errors);
             }
 
-            return await purchaseManager.AddPurchase(purchaseDTO);
+            return await purchaseManager.AddPurchase(purchaseDTO, cancellationToken);
         }
 
         /// <summary>
         /// Retrieves purchase transaction based on order id.
         /// </summary>
         /// <param name="id">Purchase Id</param>
+        /// <param name="cancellationToken">Cancellation token for the async operation.</param>
         /// <returns>Purchase DTO matching the criteria.</returns>
-        public Task<PurchaseDTO> GetPurchaseOrderById(Guid id)
+        public Task<PurchaseDTO> GetPurchaseOrderById(Guid id, CancellationToken cancellationToken = default)
         {
             throw new NotImplementedException();
         }
 
         /// <summary>
-        /// Retrieves purchase transactions based on specified criteria.
+        /// Retrieves purchase transactions with exchange rate conversions to specified currencies.
+        /// Uses Treasury Reporting Rates of Exchange API for current conversion rates.
         /// </summary>
-        /// <param name="purchaseRequestDTO">The filtering criteria for purchases.</param>
-        /// <returns>A collection of purchase DTOs matching the criteria.</returns>
-        public async Task<IList<PurchaseDTO>> GetPurchaseTransactions(PurchaseRequestDTO purchaseRequestDTO)
+        /// <param name="purchaseRequestDTO">The filtering criteria for purchases including target currencies.</param>
+        /// <param name="cancellationToken">Cancellation token for the async operation.</param>
+        /// <returns>A collection of purchases with exchange rate conversion information.</returns>
+        public async Task<IList<PurchaseWithExchangeRateDTO>> GetPurchaseTransactionsWithConversions(PurchaseRequestDTO purchaseRequestDTO, CancellationToken cancellationToken = default)
         {
             if (purchaseRequestDTO == null)
                 throw new PurchaseValidationException("Purchase request cannot be null");
 
+            // Validate request has currencies specified
+            if (purchaseRequestDTO.Currency == null || purchaseRequestDTO.Currency.Length == 0)
+                throw new PurchaseValidationException("Target currency codes must be specified for conversion");
+
             // Basic request validation
             if (purchaseRequestDTO.Ids == null || purchaseRequestDTO.Ids.Length == 0)
-                return new List<PurchaseDTO>();
+                return new List<PurchaseWithExchangeRateDTO>();
 
-            return await purchaseManager.GetPurchaseTransactions(purchaseRequestDTO);
+            return await purchaseManager.GetPurchaseTransactionsWithConversions(purchaseRequestDTO, cancellationToken);
         }
     }
 }

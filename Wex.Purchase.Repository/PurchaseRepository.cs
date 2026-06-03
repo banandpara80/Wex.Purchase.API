@@ -1,5 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Wex.Purchase.Repository.Entity;
+using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
 
 namespace Wex.Purchase.Repository
 {
@@ -70,7 +71,7 @@ namespace Wex.Purchase.Repository
         /// <returns>A list of purchase entities matching the specified IDs.</returns>
         public async Task<IList<PurchaseBO>> GetPurchaseTransactions(Guid[] ids, CancellationToken cancellationToken = default)
         {
-            return await _db.Purchases.Where(p => ids.Contains(p.Id)).ToListAsync(cancellationToken);
+            return await _db.Purchases.Where(p => ids.ToArray().Contains(p.Id)).ToListAsync(cancellationToken);
         }
     }
 }

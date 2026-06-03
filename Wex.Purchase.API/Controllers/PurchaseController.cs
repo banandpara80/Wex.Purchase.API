@@ -1,8 +1,9 @@
 using Microsoft.AspNetCore.Mvc;
 using Wex.Purchase.BusinessModels;
+using Wex.Purchase.Common.Exceptions;
 using Wex.Purchase.Service;
 using ILogger = Serilog.ILogger;
-// Using global JSON options configured in Program.cs
+
 namespace Wex.Purchase.API.Controllers;
 
 /// <summary>
@@ -10,9 +11,13 @@ namespace Wex.Purchase.API.Controllers;
 /// Provides endpoints for retrieving, adding, and querying purchase transactions.
 /// </summary>
 [ApiController]
-[Route("api/v1/[controller]")]
+[Route("api/v1/purchase")]
 [Consumes("application/json")]
 [Produces("application/json")]
+[ProducesResponseType(StatusCodes.Status404NotFound)]
+[ProducesResponseType(StatusCodes.Status500InternalServerError)]
+[ProducesResponseType(StatusCodes.Status401Unauthorized)]
+[ProducesResponseType(typeof(PurchaseValidationException), StatusCodes.Status400BadRequest)]
 public class PurchaseController : ControllerBase
 {
     private readonly ILogger Logger;
@@ -50,30 +55,35 @@ public class PurchaseController : ControllerBase
     /// <param name="purchaseDTO">The purchase data to add.</param>
     /// <returns>The added purchase with generated ID and metadata.</returns>
     [HttpPost(Name = "purchase")]
+    [ProducesResponseType(typeof(PurchaseDTO), StatusCodes.Status201Created)]
     public async Task<ActionResult<PurchaseDTO>> AddPurchase([FromBody] PurchaseDTO purchaseDTO)
     {
         Logger.Information("Adding purchase");
         if (purchaseDTO == null)
             return BadRequest();
 
-        if (purchaseDTO.Id == Guid.Empty)
-            purchaseDTO.Id = Guid.NewGuid();
-
         purchaseDTO = await purchaseService.AddPurchase(purchaseDTO);
 
-        return Ok(purchaseDTO);
+        return CreatedAtAction(nameof(AddPurchase), purchaseDTO);
     }
         
-
     /// <summary>
-    /// Retrieves purchase transactions based on specified criteria.
+    /// Retrieves purchase transactions with exchange rate conversions to specified currencies.
+    /// Uses Treasury Reporting Rates of Exchange API for current conversion rates.
     /// </summary>
-    /// <param name="purchaseRequestDTO">The criteria for filtering purchases.</param>
-    /// <returns>A collection of purchase DTOs matching the criteria.</returns>
-    [HttpPost("purchasetransactions")]
-    public async Task<ActionResult<IEnumerable<PurchaseDTO>>> GetPurchaseTransactionss([FromBody] PurchaseRequestDTO purchaseRequestDTO)
+    /// <param name="purchaseRequestDTO">The criteria for filtering purchases, including target currency codes.</param>
+    /// <returns>A collection of purchase DTOs with exchange rate conversion information for each currency.</returns>
+    /// <remarks>
+    /// The Currency field in PurchaseRequestDTO should contain ISO 4217 currency codes (e.g., EUR, GBP, JPY, CAD).
+    /// Results include one entry per purchase-currency combination with converted amounts.
+    /// </remarks>
+    [HttpPost("transactions/with-conversions")]
+    [ProducesResponseType(typeof(IEnumerable<PurchaseWithExchangeRateDTO>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<IEnumerable<PurchaseWithExchangeRateDTO>>> GetPurchaseTransactionsWithConversions([FromBody] PurchaseRequestDTO purchaseRequestDTO)
     {
-        var purchaseTransactions = await purchaseService.GetPurchaseTransactions(purchaseRequestDTO);
-        return new ActionResult<IEnumerable<PurchaseDTO>>(purchaseTransactions);
+        Logger.Information("Getting purchase transactions with exchange rate conversions");
+
+        var convertedTransactions = await purchaseService.GetPurchaseTransactionsWithConversions(purchaseRequestDTO);
+        return new ActionResult<IEnumerable<PurchaseWithExchangeRateDTO>>(convertedTransactions);
     }
 }

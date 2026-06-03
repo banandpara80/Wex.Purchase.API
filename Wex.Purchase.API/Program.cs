@@ -1,9 +1,7 @@
 using Serilog;
-using System.Threading.Tasks;
 using Wex.Purchase.Service;
-using Microsoft.EntityFrameworkCore;
-using Wex.Purchase.Repository;
 using Wex.Purchase.API.Extensions;
+using Wex.Purchase.Service.Exceptions;
 
 /// <summary>
 /// Application entry point for the Wex Purchase API.
@@ -40,6 +38,20 @@ public class Program
 
         //Register services
         builder.Services.AddInfrastructure();
+
+        // Register service-level exception handler for DI
+        builder.Services.AddScoped<IServiceExceptionHandler, ServiceExceptionHandler>();
+
+        // Ensure concrete PurchaseService is registered
+        builder.Services.AddScoped<PurchaseService>();
+
+        // Register IPurchaseService via decorator that wraps calls with the exception handler
+        builder.Services.AddScoped<IPurchaseService>(sp =>
+        {
+            var real = sp.GetRequiredService<PurchaseService>();
+            var handler = sp.GetRequiredService<IServiceExceptionHandler>();
+            return new PurchaseServiceDecorator(real, handler);
+        });
 
         // Register exception handling services
         builder.Services.AddExceptionHandling();

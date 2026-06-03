@@ -10,6 +10,13 @@ EXPOSE 8081
 
 # This stage is used to build the service project
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+RUN apt-get update && apt-get install -y wget && \
+    wget https://dot.net/v1/dotnet-install.sh -O dotnet-install.sh && \
+    chmod +x dotnet-install.sh && \
+    ./dotnet-install.sh --channel 8.0 --install-dir /usr/local/dotnet && \
+    ln -sf /usr/local/dotnet/dotnet /usr/local/bin/dotnet8 && \
+    rm dotnet-install.sh && \
+    apt-get remove -y wget && apt-get clean
 ARG BUILD_CONFIGURATION=Release
 WORKDIR /src
 COPY ["Wex.Purchase.API/Wex.Purchase.API.csproj", "Wex.Purchase.API/"]
