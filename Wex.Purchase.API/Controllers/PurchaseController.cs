@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Wex.Purchase.BusinessModels;
-using Wex.Purchase.Common.Exceptions;
+using Wex.Purchase.API.Models;
 using Wex.Purchase.Service;
 using ILogger = Serilog.ILogger;
 
@@ -14,14 +14,14 @@ namespace Wex.Purchase.API.Controllers;
 [Route("api/v1/purchase")]
 [Consumes("application/json")]
 [Produces("application/json")]
-[ProducesResponseType(StatusCodes.Status404NotFound)]
-[ProducesResponseType(StatusCodes.Status500InternalServerError)]
+[ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
+[ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status500InternalServerError)]
 [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-[ProducesResponseType(typeof(PurchaseValidationException), StatusCodes.Status400BadRequest)]
+[ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status400BadRequest)]
 public class PurchaseController : ControllerBase
 {
-    private readonly ILogger Logger;
-    private readonly IPurchaseService purchaseService;
+    private readonly ILogger _logger;
+    private readonly IPurchaseService _purchaseService;
 
     /// <summary>
     /// Initializes a new instance of the PurchaseController class.
@@ -30,8 +30,8 @@ public class PurchaseController : ControllerBase
     /// <param name="purchaseService">Service instance for managing purchase operations.</param>
     public PurchaseController(ILogger logger, IPurchaseService purchaseService)
     {
-        Logger = logger;
-        this.purchaseService = purchaseService;
+        _logger = logger;
+        this._purchaseService = purchaseService;
     }
 
     /// <summary>
@@ -42,9 +42,9 @@ public class PurchaseController : ControllerBase
     [HttpGet(Name = "purchase/{id:guid}")]
     public async Task<ActionResult<PurchaseDTO>> Get(Guid id)
     {
-        Logger.Information("Getting purchases");
+        _logger.Information("Getting purchases");
 
-        PurchaseDTO purchaseDTO = await purchaseService.GetPurchaseOrderById(id);
+        PurchaseDTO purchaseDTO = await _purchaseService.GetPurchaseOrderById(id);
 
         return Ok(purchaseDTO);
     }
@@ -58,11 +58,11 @@ public class PurchaseController : ControllerBase
     [ProducesResponseType(typeof(PurchaseDTO), StatusCodes.Status201Created)]
     public async Task<ActionResult<PurchaseDTO>> AddPurchase([FromBody] PurchaseDTO purchaseDTO)
     {
-        Logger.Information("Adding purchase");
+        _logger.Information("Adding purchase");
         if (purchaseDTO == null)
             return BadRequest();
 
-        purchaseDTO = await purchaseService.AddPurchase(purchaseDTO);
+        purchaseDTO = await _purchaseService.AddPurchase(purchaseDTO);
 
         return CreatedAtAction(nameof(AddPurchase), purchaseDTO);
     }
@@ -74,16 +74,16 @@ public class PurchaseController : ControllerBase
     /// <param name="purchaseRequestDTO">The criteria for filtering purchases, including target currency codes.</param>
     /// <returns>A collection of purchase DTOs with exchange rate conversion information for each currency.</returns>
     /// <remarks>
-    /// The Currency field in PurchaseRequestDTO should contain ISO 4217 currency codes (e.g., EUR, GBP, JPY, CAD).
+    /// The Currency field in PurchaseRequestDTO
     /// Results include one entry per purchase-currency combination with converted amounts.
     /// </remarks>
     [HttpPost("transactions/with-conversions")]
     [ProducesResponseType(typeof(IEnumerable<PurchaseWithExchangeRateDTO>), StatusCodes.Status200OK)]
     public async Task<ActionResult<IEnumerable<PurchaseWithExchangeRateDTO>>> GetPurchaseTransactionsWithConversions([FromBody] PurchaseRequestDTO purchaseRequestDTO)
     {
-        Logger.Information("Getting purchase transactions with exchange rate conversions");
+        _logger.Information("Getting purchase transactions with exchange rate conversions");
 
-        var convertedTransactions = await purchaseService.GetPurchaseTransactionsWithConversions(purchaseRequestDTO);
+        var convertedTransactions = await _purchaseService.GetPurchaseTransactionsWithConversions(purchaseRequestDTO);
         return new ActionResult<IEnumerable<PurchaseWithExchangeRateDTO>>(convertedTransactions);
     }
 }

@@ -1,7 +1,7 @@
-using Microsoft.AspNetCore.Mvc;
 using Serilog;
 using System.Text.Json;
 using Wex.Purchase.Common.Exceptions;
+using Wex.Purchase.API.Models;
 
 namespace Wex.Purchase.API.Middleware;
 
@@ -37,11 +37,9 @@ public class GlobalExceptionHandlingMiddleware
     {
         context.Response.ContentType = "application/json";
 
-        var response = new ProblemDetails
+        var response = new ErrorResponse
         {
-            Title = "An error occurred",
-            Detail = exception.Message,
-            Instance = context.Request.Path
+            Title = "An error occurred"
         };
 
         switch (exception)
@@ -54,12 +52,20 @@ public class GlobalExceptionHandlingMiddleware
                 Log.Information("Purchase not found exception. PurchaseId: {@PurchaseId}", notFoundEx.PurchaseId);
                 break;
 
+            case ExchangeRateNotFoundException exChangenotFoundEx:
+                context.Response.StatusCode = StatusCodes.Status404NotFound;
+                response.Status = StatusCodes.Status404NotFound;
+                response.Title = "Exchange Rate Not Found";
+                response.Detail = exChangenotFoundEx.Message;
+                Log.Information("Exchange Rate not found exception. TransactionDate: {@TransactionDate} , Currency :  {@Currency}", exChangenotFoundEx.TransactionDate, exChangenotFoundEx.Currency);
+                break;
+
             case PurchaseValidationException validationEx:
                 context.Response.StatusCode = StatusCodes.Status400BadRequest;
                 response.Status = StatusCodes.Status400BadRequest;
                 response.Title = "Validation Failed";
                 response.Detail = validationEx.Message;
-                response.Extensions["errors"] = validationEx.Errors;
+                response.Extensions = new Dictionary<string, object> { { "errors", validationEx.Errors } };
                 Log.Warning("Validation exception. Errors: {@Errors}", validationEx.Errors);
                 break;
 
@@ -75,6 +81,7 @@ public class GlobalExceptionHandlingMiddleware
                 context.Response.StatusCode = StatusCodes.Status400BadRequest;
                 response.Status = StatusCodes.Status400BadRequest;
                 response.Title = "Application Error";
+                response.Detail = appEx.Message;
                 Log.Error(appEx, "Application exception occurred");
                 break;
 

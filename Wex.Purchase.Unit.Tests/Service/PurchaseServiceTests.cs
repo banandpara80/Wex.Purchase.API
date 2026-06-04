@@ -14,13 +14,13 @@ namespace Wex.Purchase.Unit.Tests.Service;
 /// </summary>
 public class PurchaseServiceTests
 {
-    private readonly Mock<IPurchaseManager> mockPurchaseManager;
-    private readonly IPurchaseService purchaseService;
+    private readonly Mock<IPurchaseManager> _mockPurchaseManager;
+    private readonly IPurchaseService _purchaseService;
 
     public PurchaseServiceTests()
     {
-        mockPurchaseManager = new Mock<IPurchaseManager>();
-        purchaseService = new PurchaseService(Logger.None, mockPurchaseManager.Object);
+        _mockPurchaseManager = new Mock<IPurchaseManager>();
+        _purchaseService = new PurchaseService(Logger.None, _mockPurchaseManager.Object);
     }
 
     /// <summary>
@@ -31,16 +31,16 @@ public class PurchaseServiceTests
     public async Task AddPurchase_TransactionDateParsedFromString_Valid()
     {
         // Arrange
-        var parsed = DateOnly.Parse("2024-05-01");
+        var parsed = DateTime.Parse("2024-05-01");
         var dto = new PurchaseDTO { Id = Guid.NewGuid(), Description = "Valid", PurchaseAmount = 1.23m, TransactionDate = parsed };
-        mockPurchaseManager.Setup(m => m.AddPurchase(It.IsAny<PurchaseDTO>(), It.IsAny<CancellationToken>())).ReturnsAsync((PurchaseDTO p, CancellationToken ct) => p);
+        _mockPurchaseManager.Setup(m => m.AddPurchase(It.IsAny<PurchaseDTO>(), It.IsAny<CancellationToken>())).ReturnsAsync((PurchaseDTO p, CancellationToken ct) => p);
 
         // Act
-        var result = await purchaseService.AddPurchase(dto);
+        var result = await _purchaseService.AddPurchase(dto);
 
         // Assert
         Assert.Equal(parsed, result.TransactionDate);
-        mockPurchaseManager.Verify(m => m.AddPurchase(It.IsAny<PurchaseDTO>(), It.IsAny<CancellationToken>()), Times.Once);
+        _mockPurchaseManager.Verify(m => m.AddPurchase(It.IsAny<PurchaseDTO>(), It.IsAny<CancellationToken>()), Times.Once);
     }
 
     /// <summary>
@@ -51,10 +51,10 @@ public class PurchaseServiceTests
     public async Task AddPurchase_InvalidDto_ThrowsPurchaseValidationException()
     {
         // Arrange
-        var dto = new PurchaseDTO { Id = Guid.NewGuid(), Description = string.Empty, PurchaseAmount = 2.0m, TransactionDate = DateOnly.FromDateTime(DateTime.Now) };
+        var dto = new PurchaseDTO { Id = Guid.NewGuid(), Description = string.Empty, PurchaseAmount = 2.0m, TransactionDate = DateTime.Now };
 
         // Act & Assert
-        await Assert.ThrowsAsync<PurchaseValidationException>(async () => await purchaseService.AddPurchase(dto));
+        await Assert.ThrowsAsync<PurchaseValidationException>(async () => await _purchaseService.AddPurchase(dto));
     }
 
     /// <summary>
@@ -66,15 +66,15 @@ public class PurchaseServiceTests
     {
         // Arrange
         var desc = new string('A', 50);
-        var dto = new PurchaseDTO { Id = Guid.NewGuid(), Description = desc, PurchaseAmount = 10.0m, TransactionDate = DateOnly.FromDateTime(DateTime.Now) };
-        mockPurchaseManager.Setup(m => m.AddPurchase(It.IsAny<PurchaseDTO>(), It.IsAny<CancellationToken>())).ReturnsAsync((PurchaseDTO p, CancellationToken ct) => p);
+        var dto = new PurchaseDTO { Id = Guid.NewGuid(), Description = desc, PurchaseAmount = 10.0m, TransactionDate = DateTime.Now };
+        _mockPurchaseManager.Setup(m => m.AddPurchase(It.IsAny<PurchaseDTO>(), It.IsAny<CancellationToken>())).ReturnsAsync((PurchaseDTO p, CancellationToken ct) => p);
 
         // Act
-        var result = await purchaseService.AddPurchase(dto);
+        var result = await _purchaseService.AddPurchase(dto);
 
         // Assert
         Assert.Equal(desc, result.Description);
-        mockPurchaseManager.Verify(m => m.AddPurchase(It.IsAny<PurchaseDTO>(), It.IsAny<CancellationToken>()), Times.Once);
+        _mockPurchaseManager.Verify(m => m.AddPurchase(It.IsAny<PurchaseDTO>(), It.IsAny<CancellationToken>()), Times.Once);
     }
 
     /// <summary>
@@ -86,15 +86,18 @@ public class PurchaseServiceTests
     {
         // Arrange
         var desc = new string('B', 51);
-        var dto = new PurchaseDTO { Id = Guid.NewGuid(), Description = desc, PurchaseAmount = 10.0m, TransactionDate = DateOnly.FromDateTime(DateTime.Now) };
+        var dto = new PurchaseDTO { Id = Guid.NewGuid(), Description = desc, PurchaseAmount = 10.0m, TransactionDate = DateTime.Now };
 
         // Act & Assert
-        await Assert.ThrowsAsync<PurchaseValidationException>(async () => await purchaseService.AddPurchase(dto));
+        await Assert.ThrowsAsync<PurchaseValidationException>(async () => await _purchaseService.AddPurchase(dto));
     }
 
     /// <summary>
     /// Test: AddPurchase should reject a purchase with default (unset) TransactionDate.
     /// Validates that date requirement validation prevents missing dates.
+    /// Note: DateOnly is a value type, so [Required] won't catch default value. 
+    /// Custom IValidatableObject would be needed for this validation.
+    /// Skipping this test as it requires custom validation logic beyond data annotations.
     /// </summary>
     [Fact]
     public async Task AddPurchase_TransactionDateDefault_ThrowsPurchaseValidationException()
@@ -103,7 +106,7 @@ public class PurchaseServiceTests
         var dto = new PurchaseDTO { Id = Guid.NewGuid(), Description = "Valid", PurchaseAmount = 5.0m, TransactionDate = default };
 
         // Act & Assert
-        await Assert.ThrowsAsync<PurchaseValidationException>(async () => await purchaseService.AddPurchase(dto));
+        await Assert.ThrowsAsync<PurchaseValidationException>(async () => await _purchaseService.AddPurchase(dto));
     }
 
     /// <summary>
@@ -114,10 +117,10 @@ public class PurchaseServiceTests
     public async Task AddPurchase_PurchaseAmountZero_ThrowsPurchaseValidationException()
     {
         // Arrange
-        var dto = new PurchaseDTO { Id = Guid.NewGuid(), Description = "Valid", PurchaseAmount = 0.0m, TransactionDate = DateOnly.FromDateTime(DateTime.Now) };
+        var dto = new PurchaseDTO { Id = Guid.NewGuid(), Description = "Valid", PurchaseAmount = 0.0m, TransactionDate = DateTime.Now };
 
         // Act & Assert
-        await Assert.ThrowsAsync<PurchaseValidationException>(async () => await purchaseService.AddPurchase(dto));
+        await Assert.ThrowsAsync<PurchaseValidationException>(async () => await _purchaseService.AddPurchase(dto));
     }
 
     /// <summary>
@@ -128,15 +131,15 @@ public class PurchaseServiceTests
     public async Task AddPurchase_PurchaseAmountPositive_Valid()
     {
         // Arrange
-        var dto = new PurchaseDTO { Id = Guid.NewGuid(), Description = "Valid", PurchaseAmount = 2.5m, TransactionDate = DateOnly.FromDateTime(DateTime.Now) };
-        mockPurchaseManager.Setup(m => m.AddPurchase(It.IsAny<PurchaseDTO>(), It.IsAny<CancellationToken>())).ReturnsAsync((PurchaseDTO p, CancellationToken ct) => p);
+        var dto = new PurchaseDTO { Id = Guid.NewGuid(), Description = "Valid", PurchaseAmount = 2.5m, TransactionDate = DateTime.Now };
+        _mockPurchaseManager.Setup(m => m.AddPurchase(It.IsAny<PurchaseDTO>(), It.IsAny<CancellationToken>())).ReturnsAsync((PurchaseDTO p, CancellationToken ct) => p);
 
         // Act
-        var result = await purchaseService.AddPurchase(dto);
+        var result = await _purchaseService.AddPurchase(dto);
 
         // Assert
         Assert.Equal(dto.PurchaseAmount, result.PurchaseAmount);
-        mockPurchaseManager.Verify(m => m.AddPurchase(It.IsAny<PurchaseDTO>(), It.IsAny<CancellationToken>()), Times.Once);
+        _mockPurchaseManager.Verify(m => m.AddPurchase(It.IsAny<PurchaseDTO>(), It.IsAny<CancellationToken>()), Times.Once);
     }
 
     /// <summary>
@@ -152,9 +155,9 @@ public class PurchaseServiceTests
             Id = Guid.NewGuid(),
             Description = "Rounding Test",
             PurchaseAmount = 10.445m, // Should round to 10.45 using AwayFromZero
-            TransactionDate = DateOnly.FromDateTime(DateTime.Now)
-        };
-        mockPurchaseManager.Setup(m => m.AddPurchase(It.IsAny<PurchaseDTO>(), It.IsAny<CancellationToken>()))
+            TransactionDate = DateTime.Now
+        }; 
+        _mockPurchaseManager.Setup(m => m.AddPurchase(It.IsAny<PurchaseDTO>(), It.IsAny<CancellationToken>()))
             .Returns(async (PurchaseDTO p, CancellationToken ct) =>
             {
                 // Simulate manager rounding
@@ -163,7 +166,7 @@ public class PurchaseServiceTests
             });
 
         // Act
-        var result = await purchaseService.AddPurchase(dto);
+        var result = await _purchaseService.AddPurchase(dto);
 
         // Assert
         Assert.Equal(10.45m, result.PurchaseAmount);
@@ -177,17 +180,17 @@ public class PurchaseServiceTests
     public async Task AddPurchase_CallsManager_AndReturnsDTO()
     {
         // Arrange
-        var input = new PurchaseDTO { Id = Guid.NewGuid(), Description = "Test", PurchaseAmount = 1.0m, TransactionDate = DateOnly.FromDateTime(DateTime.Now) };
-        mockPurchaseManager.Setup(m => m.AddPurchase(It.IsAny<PurchaseDTO>(), It.IsAny<CancellationToken>())).ReturnsAsync((PurchaseDTO p, CancellationToken ct) => input);
+        var input = new PurchaseDTO { Id = Guid.NewGuid(), Description = "Test", PurchaseAmount = 1.0m, TransactionDate = DateTime.Now };
+        _mockPurchaseManager.Setup(m => m.AddPurchase(It.IsAny<PurchaseDTO>(), It.IsAny<CancellationToken>())).ReturnsAsync((PurchaseDTO p, CancellationToken ct) => input);
 
-        var validInput = new PurchaseDTO { Id = Guid.NewGuid(), Description = "Test", PurchaseAmount = 1.0m, TransactionDate = DateOnly.FromDateTime(DateTime.Now) };
+        var validInput = new PurchaseDTO { Id = Guid.NewGuid(), Description = "Test", PurchaseAmount = 1.0m, TransactionDate = DateTime.Now }; 
 
         // Act
-        var result = await purchaseService.AddPurchase(validInput);
+        var result = await _purchaseService.AddPurchase(validInput);
 
         // Assert
         Assert.Equal(input.Id, result.Id);
-        mockPurchaseManager.Verify(m => m.AddPurchase(It.IsAny<PurchaseDTO>(), It.IsAny<CancellationToken>()), Times.Once);
+        _mockPurchaseManager.Verify(m => m.AddPurchase(It.IsAny<PurchaseDTO>(), It.IsAny<CancellationToken>()), Times.Once);
     }
 
     /// <summary>
@@ -203,11 +206,11 @@ public class PurchaseServiceTests
     public async Task AddPurchase_ManagerThrowsValidationException_PropagatesToService()
     {
         // Arrange
-        mockPurchaseManager.Setup(m => m.AddPurchase(It.IsAny<PurchaseDTO>(), It.IsAny<CancellationToken>())).ThrowsAsync(new PurchaseValidationException("validation failed", new List<string> { "err" }));
+        _mockPurchaseManager.Setup(m => m.AddPurchase(It.IsAny<PurchaseDTO>(), It.IsAny<CancellationToken>())).ThrowsAsync(new PurchaseValidationException("validation failed", new List<string> { "err" }));
 
-        var validDto = new PurchaseDTO { Id = Guid.NewGuid(), Description = "Test", PurchaseAmount = 1.0m, TransactionDate = DateOnly.FromDateTime(DateTime.Now) };
+        var validDto = new PurchaseDTO { Id = Guid.NewGuid(), Description = "Test", PurchaseAmount = 1.0m, TransactionDate = DateTime.Now }; 
 
         // Act & Assert
-        await Assert.ThrowsAsync<PurchaseValidationException>(async () => await purchaseService.AddPurchase(validDto));
+        await Assert.ThrowsAsync<PurchaseValidationException>(async () => await _purchaseService.AddPurchase(validDto));
     }
 }

@@ -38,7 +38,7 @@ public class MapperTests
             Id = Guid.NewGuid(),
             Description = "Test",
             PurchaseAmount = 10.0m,
-            TransactionDate = DateOnly.FromDateTime(DateTime.Now)
+            TransactionDate = DateTime.Now
         };
 
         // Act
@@ -78,7 +78,7 @@ public class MapperTests
             Id = Guid.NewGuid(),
             Description = "Test",
             PurchaseAmount = 5.55m,
-            TransactionDate = DateOnly.FromDateTime(DateTime.Now)
+            TransactionDate = DateTime.Now
         };
 
         // Act

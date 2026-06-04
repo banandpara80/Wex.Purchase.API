@@ -15,9 +15,9 @@ namespace Wex.Purchase.Manager
     /// </summary>
     public class PurchaseManager : IPurchaseManager
     {
-        private readonly IPurchaseRepository purchaseRepository;
-        private readonly IExchangeRateConversionService exchangeRateConversionService;
-        private readonly ILogger Logger;
+        private readonly IPurchaseRepository _purchaseRepository;
+        private readonly IExchangeRateConversionService _exchangeRateConversionService;
+        private readonly ILogger _logger;
 
         /// <summary>
         /// Initializes a new instance of the PurchaseManager class.
@@ -25,10 +25,10 @@ namespace Wex.Purchase.Manager
         /// <param name="logger">Serilog logger instance.</param>
         /// <param name="purchaseRepository">The repository for data access operations.</param>
         /// <param name="exchangeRateConversionService">Service for exchange rate conversions.</param>
-        public PurchaseManager(ILogger logger, IPurchaseRepository purchaseRepository, IExchangeRateConversionService exchangeRateConversionService = null) { 
-            Logger = logger;
-            this.purchaseRepository = purchaseRepository;
-            this.exchangeRateConversionService = exchangeRateConversionService;
+        public PurchaseManager(ILogger logger, IPurchaseRepository purchaseRepository, IExchangeRateConversionService exchangeRateConversionService = null) {
+            _logger = logger;
+            this._purchaseRepository = purchaseRepository;
+            this._exchangeRateConversionService = exchangeRateConversionService;
         }
 
         /// <summary>
@@ -49,7 +49,7 @@ namespace Wex.Purchase.Manager
 
             try
             {
-                await purchaseRepository.AddAsync(purchaseBO, cancellationToken);
+                await _purchaseRepository.AddAsync(purchaseBO, cancellationToken);
             }
             catch (Exception ex)
             {
@@ -63,7 +63,7 @@ namespace Wex.Purchase.Manager
 
         public async Task<PurchaseDTO> GetPurchaseOrderById(Guid id, CancellationToken cancellationToken = default)
         {
-            PurchaseBO purchaseBO = await purchaseRepository.GetByIdAsync(id, cancellationToken);
+            PurchaseBO purchaseBO = await _purchaseRepository.GetByIdAsync(id, cancellationToken);
 
             PurchaseDTO purchaseDTO = PurchaseMapper.MapToPurchaseDTO(purchaseBO);
 
@@ -78,10 +78,25 @@ namespace Wex.Purchase.Manager
         /// <returns>A collection of purchase DTOs matching the criteria.</returns>
         public async Task<IList<PurchaseDTO>> GetPurchaseTransactions(PurchaseRequestDTO purchaseRequestDTO, CancellationToken cancellationToken = default)
         {
+            // Parse the Ids string to array of Guids
+            Guid[] purchaseIds;
+            try
+            {
+                var idStrings = purchaseRequestDTO.Ids.Split(',');
+                purchaseIds = idStrings
+                    .Select(id => Guid.Parse(id.Trim()))
+                    .ToArray();
+            }
+            catch (Exception ex)
+            {
+                _logger.Error(ex, "Error parsing purchase IDs: {Ids}", purchaseRequestDTO.Ids);
+                throw new InvalidOperationException($"Invalid purchase ID format. Expected comma-separated GUIDs.", ex);
+            }
+
             IList<PurchaseBO> puchaseTransactions;
             try
             {
-                puchaseTransactions = await purchaseRepository.GetPurchaseTransactions(purchaseRequestDTO.Ids, cancellationToken);
+                puchaseTransactions = await _purchaseRepository.GetPurchaseTransactions(purchaseIds, cancellationToken);
             }
             catch (Exception ex)
             {
@@ -103,7 +118,7 @@ namespace Wex.Purchase.Manager
         /// <returns>A collection of purchases with exchange rate conversion information.</returns>
         public async Task<IList<PurchaseWithExchangeRateDTO>> GetPurchaseTransactionsWithConversions(PurchaseRequestDTO purchaseRequestDTO, CancellationToken cancellationToken = default)
         {
-            if (exchangeRateConversionService == null)
+            if (_exchangeRateConversionService == null)
             {
                 throw new InvalidOperationException("Exchange rate conversion service is not configured. Please register IExchangeRateConversionService in DI.");
             }
@@ -113,26 +128,26 @@ namespace Wex.Purchase.Manager
 
             if (purchases.Count == 0)
             {
-                Logger.Information("No purchases found for conversion");
+                _logger.Information("No purchases found for conversion");
                 return new List<PurchaseWithExchangeRateDTO>();
             }
 
             // Convert to requested currencies
             try
             {
-                IList<PurchaseWithExchangeRateDTO> convertedPurchases = await exchangeRateConversionService.ConvertPurchasesAsync(
+                IList<PurchaseWithExchangeRateDTO> convertedPurchases = await _exchangeRateConversionService.ConvertPurchasesAsync(
                     purchases,
                     purchaseRequestDTO.Currency,
                     cancellationToken);
 
-                Logger.Information("Successfully converted {PurchaseCount} purchases to {CurrencyCount} currencies",
+                _logger.Information("Successfully converted {PurchaseCount} purchases to {CurrencyCount} currencies",
                     purchases.Count, purchaseRequestDTO.Currency.Length);
 
                 return convertedPurchases;
             }
             catch (Exception ex)
             {
-                Logger.Error(ex, "Failed to convert purchase transactions");
+                _logger.Error(ex, "Failed to convert purchase transactions");
                 throw;
             }
         }

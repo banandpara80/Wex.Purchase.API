@@ -7,85 +7,44 @@ namespace Wex.Purchase.Repository.Exceptions;
 public class PurchaseRepositoryDecorator : IPurchaseRepository
 {
     private readonly IPurchaseRepository _inner;
-    private static readonly ActivitySource ActivitySource = new("Wex.Purchase.Repository.PurchaseRepositoryDecorator");
+    private readonly IRepositoryrExceptionHandler _handler;
 
-    public PurchaseRepositoryDecorator(IPurchaseRepository inner)
+    public PurchaseRepositoryDecorator(IPurchaseRepository inner, IRepositoryrExceptionHandler handler)
     {
         _inner = inner;
+        _handler= handler;
     }
 
     public Task AddAsync(PurchaseBO purchase, CancellationToken cancellationToken = default)
     {
-        return ExecuteWithMetrics(() => RepositoryExceptionHandler.ExecuteWithExceptionHandling(() => _inner.AddAsync(purchase, cancellationToken), nameof(AddAsync)), nameof(AddAsync));
+
+        return _handler.ExecuteWithExceptionHandling(
+            ct => _inner.AddAsync(purchase, ct),
+            nameof(AddAsync),
+            cancellationToken);
     }
 
     public Task<IEnumerable<PurchaseBO>> GetAllAsync(CancellationToken cancellationToken = default)
     {
-        return ExecuteWithMetrics(() => RepositoryExceptionHandler.ExecuteWithExceptionHandling(() => _inner.GetAllAsync(cancellationToken), nameof(GetAllAsync)), nameof(GetAllAsync));
+        return _handler.ExecuteWithExceptionHandling(
+            ct => _inner.GetAllAsync(ct),
+            nameof(GetAllAsync),
+            cancellationToken);
     }
 
     public Task<PurchaseBO?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        return ExecuteWithMetrics(() => RepositoryExceptionHandler.ExecuteWithExceptionHandling(() => _inner.GetByIdAsync(id, cancellationToken), nameof(GetByIdAsync)), nameof(GetByIdAsync));
+        return _handler.ExecuteWithExceptionHandling(
+           ct => _inner.GetByIdAsync(id, ct),
+           nameof(GetByIdAsync),
+           cancellationToken);
     }
 
     public Task<IList<PurchaseBO>> GetPurchaseTransactions(Guid[] ids, CancellationToken cancellationToken = default)
     {
-        return ExecuteWithMetrics(() => RepositoryExceptionHandler.ExecuteWithExceptionHandling(() => _inner.GetPurchaseTransactions(ids, cancellationToken), nameof(GetPurchaseTransactions)), nameof(GetPurchaseTransactions));
-    }
-
-    private async Task<T> ExecuteWithMetrics<T>(Func<Task<T>> operation, string operationName)
-    {
-        var activity = ActivitySource.StartActivity(operationName, ActivityKind.Internal);
-        var sw = Stopwatch.StartNew();
-        try
-        {
-            var result = await operation().ConfigureAwait(false);
-            Log.Information("Repository operation {Operation} completed in {ElapsedMs}ms", operationName, sw.ElapsedMilliseconds);
-            activity?.SetTag("otel.status_code", "OK");
-            activity?.SetTag("duration_ms", sw.ElapsedMilliseconds);
-            return result;
-        }
-        catch (Exception ex)
-        {
-            sw.Stop();
-            activity?.SetTag("otel.status_code", "ERROR");
-            activity?.SetTag("otel.error", true);
-            activity?.SetTag("error.message", ex.Message);
-            Log.Error(ex, "Repository operation {Operation} failed after {ElapsedMs}ms", operationName, sw.ElapsedMilliseconds);
-            throw;
-        }
-        finally
-        {
-            sw.Stop();
-            activity?.Stop();
-        }
-    }
-
-    private async Task ExecuteWithMetrics(Func<Task> operation, string operationName)
-    {
-        var activity = ActivitySource.StartActivity(operationName, ActivityKind.Internal);
-        var sw = Stopwatch.StartNew();
-        try
-        {
-            await operation().ConfigureAwait(false);
-            Log.Information("Repository operation {Operation} completed in {ElapsedMs}ms", operationName, sw.ElapsedMilliseconds);
-            activity?.SetTag("otel.status_code", "OK");
-            activity?.SetTag("duration_ms", sw.ElapsedMilliseconds);
-        }
-        catch (Exception ex)
-        {
-            sw.Stop();
-            activity?.SetTag("otel.status_code", "ERROR");
-            activity?.SetTag("otel.error", true);
-            activity?.SetTag("error.message", ex.Message);
-            Log.Error(ex, "Repository operation {Operation} failed after {ElapsedMs}ms", operationName, sw.ElapsedMilliseconds);
-            throw;
-        }
-        finally
-        {
-            sw.Stop();
-            activity?.Stop();
-        }
+        return _handler.ExecuteWithExceptionHandling(
+          ct => _inner.GetPurchaseTransactions(ids, ct),
+          nameof(GetPurchaseTransactions),
+          cancellationToken);
     }
 }

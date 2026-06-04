@@ -13,6 +13,10 @@ using Wex.Purchase.Manager.ExchangeRate;
 using Wex.Purchase.Manager.ExchangeRateConversion;
 using Wex.Purchase.Repository;
 using Wex.Purchase.Service;
+using Wex.Purchase.Repository.Exceptions;
+using Wex.Purchase.Common.CircuitBreaker;
+using Wex.Purchase.Service.Exceptions;
+using Wex.Purchase.Manager.Exceptions;
 
 namespace Microsoft.Extensions.Hosting;
 
@@ -148,21 +152,51 @@ public static class Extensions
             options.UseNpgsql(conn, npgsql => npgsql.EnableRetryOnFailure());
         });
 
-        services.AddScoped<IPurchaseService, PurchaseService>();
-        services.AddScoped<IPurchaseManager, PurchaseManager>();
-
-        // Register concrete repository and then a decorator to enable global exception handling
+        //Register concrete classes
+        services.AddScoped<PurchaseService>();
+        services.AddScoped<PurchaseManager>();
         services.AddScoped<PurchaseRepository>();
-        services.AddScoped<IPurchaseRepository>(sp =>
-        {
-            var real = sp.GetRequiredService<PurchaseRepository>();
-            return new Wex.Purchase.Repository.Exceptions.PurchaseRepositoryDecorator(real);
-        });
 
         // Register Treasury Exchange Rate API client and conversion service
         services.AddHttpClient<ITreasuryExchangeRateClient, TreasuryExchangeRateClient>();
         services.AddScoped<IExchangeRateConversionService, ExchangeRateConversionService>();
 
+        services.AddSingleton<ICircuitBreaker>(sp =>
+            new PollyCircuitBreaker(
+                exceptionsAllowedBeforeBreaking: 2,
+                durationOfBreak: TimeSpan.FromSeconds(30)
+        ));
+
+        // Service level
+        services.AddScoped<IServiceExceptionHandler, ServiceExceptionHandler>();
+        services.AddScoped<IPurchaseService>(sp =>
+        {
+            var real = sp.GetRequiredService<PurchaseService>();
+            var handler = sp.GetRequiredService<IServiceExceptionHandler>();
+            return new PurchaseServiceDecorator(real, handler);
+        });
+
+        // Repository level
+        services.AddScoped<RepositoryExceptionHandler>();
+        services.AddScoped<IPurchaseRepository>(sp =>
+        {
+            var real = sp.GetRequiredService<PurchaseRepository>();
+            var handler = sp.GetRequiredService<RepositoryExceptionHandler>();
+            return new PurchaseRepositoryDecorator(real, handler);
+        });
+
+        // Manager level
+        services.AddScoped<IManagerExceptionHandler, ManagerExceptionHandler>();
+        services.AddScoped<IPurchaseManager>(sp =>
+        {
+            var real = sp.GetRequiredService<PurchaseManager>();
+            var handler = sp.GetRequiredService<IManagerExceptionHandler>();
+            var cb = sp.GetRequiredService<ICircuitBreaker>();
+            // Wrap order: concrete -> exception handler decorator -> circuit breaker decorator
+            var withHandler = new PurchaseManagerDecorator(real, handler);
+            return new PurchaseManagerCircuitBreakerDecorator(withHandler, cb);
+        });
+         
         return services;
     }
 }

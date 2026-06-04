@@ -26,7 +26,7 @@ public class TreasuryExchangeRateClientTests
             {
                 new { exchange_rate = 1.23m, CurrencyCode = "EUR", EffectiveDate = date.ToString("yyyy-MM-dd") }
             }
-        };
+        }; 
 
         string json = JsonSerializer.Serialize(responseObj);
 

@@ -93,7 +93,7 @@ public class ExchangeRateCacheManager
         {
             // Calculate date range: 6 months before transaction date (inclusive)
             DateOnly endDate = transactionDate;
-            DateOnly startDate = transactionDate.AddMonths(-6);
+            DateOnly startDate = transactionDate; transactionDate.AddMonths(-6);
 
             string startDateStr = startDate.ToString("yyyy-MM-dd");
             string endDateStr = endDate.ToString("yyyy-MM-dd");
@@ -113,8 +113,6 @@ public class ExchangeRateCacheManager
                 _logger.Warning(
                     "No exchange rate data received from Treasury API for {CurrencyCode} in period {StartDate} to {EndDate}", 
                     currencyCode, startDateStr, endDateStr);
-                throw new InvalidOperationException(
-                    $"No exchange rate data found for currency {currencyCode} in the 6 months before {transactionDate:yyyy-MM-dd}");
             }
 
             // Convert API records to cache format, sorted by date (most recent first)
@@ -124,7 +122,7 @@ public class ExchangeRateCacheManager
                     Country = r.Country,
                     Currency = r.Currency,
                     CurrencyCode = r.CurrencyCode,
-                    ExchangeRate = r.Exchange_Rate,
+                    ExchangeRate = r.ExchangeRate,
                     RecordDate = ParseDate(r.EffectiveDate)
                 })
                 .OrderByDescending(r => r.RecordDate)
@@ -175,7 +173,7 @@ public class ExchangeRateCacheManager
         if (rates == null || rates.Count == 0)
             return null;
 
-        // Try to find exact date match first
+        // Try to find exact date match first (compare date parts only)
         var exactMatch = rates.FirstOrDefault(r => r.RecordDate == transactionDate);
         if (exactMatch != null)
             return exactMatch;

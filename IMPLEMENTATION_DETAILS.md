@@ -166,8 +166,8 @@ public async Task<PurchaseWithExchangeRateDTO> ConvertPurchaseAsync(
 		var exchangeRate = await _exchangeRateClient.GetExchangeRateWithFallbackAsync(
 			targetCurrencyCode, purchase.TransactionDate, cancellationToken);
 
-		// ✅ CORRECTED FORMULA: ConvertedAmount = PurchaseAmount / ExchangeRate
-		decimal convertedAmount = purchase.PurchaseAmount / exchangeRate;
+		// ✅ CORRECTED FORMULA: ConvertedAmount = PurchaseAmount * ExchangeRate
+		decimal convertedAmount = purchase.PurchaseAmount * exchangeRate;
 
 		var result = new PurchaseWithExchangeRateDTO
 		{
@@ -198,7 +198,7 @@ public async Task<PurchaseWithExchangeRateDTO> ConvertPurchaseAsync(
 ```
 
 ### Formula Explanation:
-**Conversion Formula:** `ConvertedAmount = PurchaseAmount / ExchangeRate`
+**Conversion Formula:** `ConvertedAmount = PurchaseAmount * ExchangeRate`
 
 Where:
 - **PurchaseAmount** = Original amount in USD
@@ -211,10 +211,10 @@ Original Amount: 100.00 USD
 Target Currency: EUR
 Exchange Rate: 1.23 (1 USD = 1.23 EUR)
 
-Calculation: 100.00 / 1.23 = 81.30081300813008130081300813
-Rounded: 81.30 EUR
+Calculation: 100.00 * 1.23 = 123.00
+Rounded: 123.00 EUR
 
-✅ Result: $100.00 USD = €81.30 EUR
+✅ Result: $100.00 USD = €123.00 EUR
 ```
 
 ### Rounding Details:
@@ -225,10 +225,10 @@ Rounded: 81.30 EUR
 
 ### Examples:
 ```
-100.00 / 1.23 = 81.300813... → 81.30
-100.50 / 1.10 = 91.363636... → 91.36
-10.555 / 1.00 = 10.555000... → 10.56 (AwayFromZero rounds up)
-1000.00 / 1.18 = 847.457627... → 847.46
+100.00 * 1.23 = 123.00 → 123.00
+100.50 * 1.10 = 110.55 → 110.55
+10.555 * 1.00 = 10.555000... → 10.56 (AwayFromZero rounds up)
+1000.00 * 1.18 = 1180.00 → 1180.00
 ```
 
 ---

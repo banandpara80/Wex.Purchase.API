@@ -7,9 +7,13 @@ namespace Wex.Purchase.Repository.Exceptions;
 /// Provides centralized exception handling with Serilog logging for database and entity framework operations.
 /// Wraps repository operations with try-catch logic to capture and log exceptions at the data access layer.
 /// </summary>
-public static class RepositoryExceptionHandler
+public class RepositoryExceptionHandler : IRepositoryrExceptionHandler
 {
-    public delegate Task<T> RepositoryOperation<T>();
+    ILogger logger;
+    public RepositoryExceptionHandler(ILogger logger)
+    {
+        this.logger = logger;
+    }
 
     /// <summary>
     /// Executes a repository operation with exception handling and Serilog logging.
@@ -18,14 +22,12 @@ public static class RepositoryExceptionHandler
     /// <param name="operation">The repository operation to execute.</param>
     /// <param name="operationName">The name of the operation for logging purposes.</param>
     /// <returns>The result of the operation or throws a wrapped exception.</returns>
-    public static async Task<T> ExecuteWithExceptionHandling<T>(
-        RepositoryOperation<T> operation,
-        string operationName)
+    public async Task<T> ExecuteWithExceptionHandling<T>(Func<CancellationToken, Task<T>> operation, string operationName, CancellationToken cancellationToken = default)
     {
         try
         {
             Log.Information("Repository operation starting: {@OperationName}", operationName);
-            var result = await operation();
+            var result = await operation(cancellationToken);
             Log.Information("Repository operation completed successfully: {@OperationName}", operationName);
             return result;
         }
@@ -56,12 +58,12 @@ public static class RepositoryExceptionHandler
     /// </summary>
     /// <param name="operation">The repository operation to execute.</param>
     /// <param name="operationName">The name of the operation for logging purposes.</param>
-    public static async Task ExecuteWithExceptionHandling(Func<Task> operation, string operationName)
+    public async Task ExecuteWithExceptionHandling(Func<CancellationToken, Task> operation, string operationName, CancellationToken cancellationToken = default)
     {
         try
         {
             Log.Information("Repository operation starting: {@OperationName}", operationName);
-            await operation();
+            await operation(cancellationToken);
             Log.Information("Repository operation completed successfully: {@OperationName}", operationName);
         }
         catch (InvalidOperationException ex)

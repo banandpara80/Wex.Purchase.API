@@ -2,6 +2,7 @@ using Serilog;
 using System.Collections.Concurrent;
 using System.Net.Http.Json;
 using System.Text.Json;
+using Wex.Purchase.Common.Exceptions;
 
 namespace Wex.Purchase.Manager.ExchangeRate;
 
@@ -20,16 +21,70 @@ public class TreasuryExchangeRateClient : ITreasuryExchangeRateClient
     // In-memory cache: Key = "CurrencyCode|DateOnly", Value = exchange rate
     private static readonly ConcurrentDictionary<string, decimal> ExchangeRateCache = new();
 
+    // Simple rate limiting state (sliding window)
+    private readonly object _rateLimitLock = new();
+    private readonly Queue<DateTime> _requestTimestamps = new();
+    private readonly int _maxRequestsPerWindow;
+    private readonly TimeSpan _rateLimitWindow = TimeSpan.FromMinutes(1);
+
     // API endpoint for Treasury exchange rates
     private const string TreasuryApiBaseUrl = "https://api.fiscaldata.treasury.gov/services/api/fiscal_service";
     private const string ExchangeRatesEndpoint = "/v1/accounting/od/rates_of_exchange";
     private const string ExchangeRateFields = "fields=record_date,country,currency,country_currency_desc,exchange_rate";
 
-    public TreasuryExchangeRateClient(HttpClient httpClient, ILogger logger)
+    /// <summary>
+    /// Creates a new client with optional rate limit (max requests per minute).
+    /// Default is 60 requests per minute.
+    /// </summary>
+    public TreasuryExchangeRateClient(HttpClient httpClient, ILogger logger, int maxRequestsPerMinute = 60)
     {
         _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _cacheManager = new ExchangeRateCacheManager(httpClient, logger);
+        _maxRequestsPerWindow = Math.Max(1, maxRequestsPerMinute);
+    }
+
+    private async Task EnsureRateLimitAsync(CancellationToken ct)
+    {
+        DateTime now = DateTime.UtcNow;
+
+        while (true)
+        {
+            TimeSpan wait = TimeSpan.Zero;
+            lock (_rateLimitLock)
+            {
+                // Evict timestamps outside the rolling window
+                while (_requestTimestamps.Count > 0 && (now - _requestTimestamps.Peek()) >= _rateLimitWindow)
+                {
+                    _requestTimestamps.Dequeue();
+                }
+
+n                if (_requestTimestamps.Count < _maxRequestsPerWindow)
+                {
+                    _requestTimestamps.Enqueue(now);
+                    return;
+                }
+
+n                var oldest = _requestTimestamps.Peek();
+                wait = _rateLimitWindow - (now - oldest);
+                if (wait < TimeSpan.Zero) wait = TimeSpan.Zero;
+            }
+
+            if (wait > TimeSpan.Zero)
+            {
+                _logger.Information("Rate limit reached. Waiting {Delay} before retrying.", wait);
+                try
+                {
+                    await Task.Delay(wait, ct);
+                }
+                catch (OperationCanceledException)
+                {
+                    throw;
+                }
+            }
+
+n            now = DateTime.UtcNow;
+        }
     }
 
     /// <summary>
@@ -41,7 +96,7 @@ public class TreasuryExchangeRateClient : ITreasuryExchangeRateClient
         if (string.IsNullOrWhiteSpace(currencyCode))
             throw new ArgumentException("Currency code cannot be null or empty", nameof(currencyCode));
 
-        string cacheKey = $"{currencyCode.ToUpperInvariant()}|{transactionDate:yyyy-MM-dd}";
+        string cacheKey = $"{currencyCode}|{transactionDate:yyyy-MM-dd}";
 
         // Check cache first
         if (ExchangeRateCache.TryGetValue(cacheKey, out var cachedRate))
@@ -59,6 +114,9 @@ public class TreasuryExchangeRateClient : ITreasuryExchangeRateClient
             string filter = $"filter=currency:eq:{currencyCode},effective_date:lt:{dateString}";
             string url = $"{TreasuryApiBaseUrl}{ExchangeRatesEndpoint}?{ExchangeRateFields}&{filter}&limit=1";
 
+            // Ensure we respect the configured rate limit before making an external call
+            await EnsureRateLimitAsync(cancellationToken);
+
             using var response = await _httpClient.GetAsync(url, cancellationToken);
             response.EnsureSuccessStatusCode();
 
@@ -70,7 +128,7 @@ public class TreasuryExchangeRateClient : ITreasuryExchangeRateClient
                 return null;
             }
 
-            decimal rate = apiResponse.Data[0].Exchange_Rate;
+            decimal rate = apiResponse.Data[0].ExchangeRate;
 
             // Cache the result
             ExchangeRateCache[cacheKey] = rate;
@@ -126,47 +184,34 @@ public class TreasuryExchangeRateClient : ITreasuryExchangeRateClient
     /// </summary>
     public async Task<decimal> GetExchangeRateWithFallbackAsync(string currencyCode, DateOnly transactionDate, CancellationToken cancellationToken = default)
     {
+         
         if (string.IsNullOrWhiteSpace(currencyCode))
             throw new ArgumentException("Currency code cannot be null or empty", nameof(currencyCode));
 
         _logger.Information("Fetching exchange rate with fallback for {CurrencyCode} on {TransactionDate}", currencyCode, transactionDate);
 
-        try
+        // Load 6 months of cached data for this currency and transaction date
+        var exchangeRates = await _cacheManager.GetExchangeRatesForDateAsync(currencyCode, transactionDate, cancellationToken);
+
+        // Filter to find exact date or most recent ≤ transaction date
+        var exchangeRateRecord = ExchangeRateCacheManager.FindExchangeRateForDateOrMostRecent(exchangeRates, transactionDate);
+
+        if (exchangeRateRecord == null)
         {
-            _logger.Information("Fetching exchange rate with fallback for {CurrencyCode} on {TransactionDate}", currencyCode, transactionDate);
-
-            // Load 6 months of cached data for this currency and transaction date
-            var exchangeRates = await _cacheManager.GetExchangeRatesForDateAsync(currencyCode, transactionDate, cancellationToken);
-
-            // Filter to find exact date or most recent ≤ transaction date
-            var exchangeRateRecord = ExchangeRateCacheManager.FindExchangeRateForDateOrMostRecent(exchangeRates, transactionDate);
-
-            if (exchangeRateRecord == null)
-            {
-                _logger.Error("No exchange rate found for {CurrencyCode} on {TransactionDate} or in fallback period", currencyCode, transactionDate);
-                throw new InvalidOperationException($"No exchange rate found for {currencyCode} on {transactionDate} or in the past 6 months");
-            }
-
-            if (exchangeRateRecord.RecordDate == transactionDate)
-            {
-                _logger.Information("Found exact exchange rate for {CurrencyCode} on {TransactionDate}: {Rate}", currencyCode, transactionDate, exchangeRateRecord.ExchangeRate);
-            }
-            else
-            {
-                _logger.Information("Using fallback exchange rate for {CurrencyCode}: requested date {TransactionDate}, using {RecordDate} with rate {Rate}",
-                    currencyCode, transactionDate, exchangeRateRecord.RecordDate, exchangeRateRecord.ExchangeRate);
-            }
-
-            return exchangeRateRecord.ExchangeRate;
+            _logger.Error("No exchange rate found for {CurrencyCode} on {TransactionDate} or in fallback period", currencyCode, transactionDate);
+            throw new ExchangeRateNotFoundException(currencyCode, transactionDate);
         }
-        catch (InvalidOperationException)
+
+        if (exchangeRateRecord.RecordDate == transactionDate)
         {
-            throw;
+            _logger.Information("Found exact exchange rate for {CurrencyCode} on {TransactionDate}: {Rate}", currencyCode, transactionDate, exchangeRateRecord.ExchangeRate);
         }
-        catch (Exception ex)
+        else
         {
-            _logger.Error(ex, "Unexpected error retrieving exchange rate with fallback for {CurrencyCode} on {TransactionDate}", currencyCode, transactionDate);
-            throw new InvalidOperationException($"Unexpected error retrieving exchange rate for {currencyCode}: {ex.Message}", ex);
+            _logger.Information("Using fallback exchange rate for {CurrencyCode}: requested date {TransactionDate}, using {RecordDate} with rate {Rate}",
+                currencyCode, transactionDate, exchangeRateRecord.RecordDate, exchangeRateRecord.ExchangeRate);
         }
+
+        return exchangeRateRecord.ExchangeRate;
     }
 }

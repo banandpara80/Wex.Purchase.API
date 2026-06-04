@@ -26,7 +26,7 @@ namespace Wex.Purchase.Repository.Entity
         /// <summary>
         /// Gets or sets the transaction date of the purchase.
         /// </summary>
-        public DateOnly TransactionDate { get; set; }
+        public DateTime TransactionDate { get; set; }
 
         /// <summary>
         /// Gets or sets the purchase amount.

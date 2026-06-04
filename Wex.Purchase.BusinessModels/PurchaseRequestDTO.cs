@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
 using System.Text;
 
 namespace Wex.Purchase.BusinessModels
@@ -10,14 +11,17 @@ namespace Wex.Purchase.BusinessModels
     /// </summary>
     public class PurchaseRequestDTO
     {
+
         /// <summary>
         /// Gets or sets the array of purchase IDs to retrieve.
         /// </summary>
-        public required Guid[] Ids { get; set; }
+        [Required(ErrorMessage = "Please provide purchase ids")]
+        public required string Ids { get; set; }
 
         /// <summary>
-        /// Gets or sets the array of currency codes for filtering.
+        /// Gets or sets the currency codes for filtering.
         /// </summary>
-        public required string[] Currency { get; set; }
+        [Required(ErrorMessage = "Please provide the target currency")]
+        public required string Currency { get; set; }
     }
 }

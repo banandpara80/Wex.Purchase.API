@@ -32,7 +32,7 @@ public class PurchaseControllerTests
     public async Task AddPurchase_Returns201ResponseCode_WithCreatedPurchase()
     {
         // Arrange
-        var input = new PurchaseDTO { Id = Guid.NewGuid(), Description = "Test", PurchaseAmount = 1.0m, TransactionDate = DateOnly.FromDateTime(DateTime.Now) };
+        var input = new PurchaseDTO { Id = Guid.NewGuid(), Description = "Test", PurchaseAmount = 1.0m, TransactionDate = DateTime.Now };
         _purchaseServiceMock.Setup(s => s.AddPurchase(It.IsAny<PurchaseDTO>())).ReturnsAsync(input);
 
         var controller = new PurchaseController(Logger.None, _purchaseServiceMock.Object);

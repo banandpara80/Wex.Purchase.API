@@ -62,3 +62,20 @@ public class PurchaseDatabaseException : PurchaseApplicationException
         Log.Error(innerException, "Database operation failed: {@Message}", message);
     }
 }
+
+/// <summary>
+/// Exception thrown when a purchase resource is not found.
+/// </summary>
+public class ExchangeRateNotFoundException : PurchaseApplicationException
+{
+    public string Currency { get; }
+    public DateOnly TransactionDate { get; }
+
+    public ExchangeRateNotFoundException(string currency, DateOnly transactionDate)
+        : base($"Exchange rate for currency '{currency}' was not found.")
+    {
+        Currency = currency;
+        TransactionDate = transactionDate;
+        Log.Warning("Exchange rate for currency  {@currency} was not found  on {@} or in the past 6 months ", currency, transactionDate);
+    }
+}

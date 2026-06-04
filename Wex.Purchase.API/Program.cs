@@ -2,6 +2,7 @@ using Serilog;
 using Wex.Purchase.Service;
 using Wex.Purchase.API.Extensions;
 using Wex.Purchase.Service.Exceptions;
+using Microsoft.AspNetCore.Mvc;
 
 /// <summary>
 /// Application entry point for the Wex Purchase API.
@@ -31,6 +32,28 @@ public class Program
                 // Register a simple converter for DateOnly when using Newtonsoft
                 opts.SerializerSettings.Converters.Add(new Newtonsoft.Json.Converters.IsoDateTimeConverter());
             });
+
+        // Configure custom response for invalid model state (validation errors)
+        builder.Services.Configure<ApiBehaviorOptions>(options =>
+        {
+            options.InvalidModelStateResponseFactory = context =>
+            {
+                var errors = context.ModelState
+                    .Where(x => x.Value?.Errors.Count > 0)
+                    .SelectMany(x => x.Value!.Errors.Select(e => e.ErrorMessage))
+                    .ToList();
+
+                var errorResponse = new Wex.Purchase.API.Models.ErrorResponse
+                {
+                    Status = StatusCodes.Status400BadRequest,
+                    Title = "Validation Failed",
+                    Detail = "One or more validation errors occurred.",
+                    Extensions = new Dictionary<string, object> { { "errors", errors } }
+                };
+
+                return new BadRequestObjectResult(errorResponse);
+            };
+        });
         builder.Services.AddEndpointsApiExplorer();
         builder.Services.AddSwaggerGen();
         // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
@@ -38,23 +61,7 @@ public class Program
 
         //Register services
         builder.Services.AddInfrastructure();
-
-        // Register service-level exception handler for DI
-        builder.Services.AddScoped<IServiceExceptionHandler, ServiceExceptionHandler>();
-
-        // Ensure concrete PurchaseService is registered
-        builder.Services.AddScoped<PurchaseService>();
-
-        // Register IPurchaseService via decorator that wraps calls with the exception handler
-        builder.Services.AddScoped<IPurchaseService>(sp =>
-        {
-            var real = sp.GetRequiredService<PurchaseService>();
-            var handler = sp.GetRequiredService<IServiceExceptionHandler>();
-            return new PurchaseServiceDecorator(real, handler);
-        });
-
-        // Register exception handling services
-        builder.Services.AddExceptionHandling();
+        builder.Services.AddGlobalExceptionHandling();
 
         //Register Serilog to work on top of Microsoft Logging
         builder.Host.UseSerilog((context, loggerConfig) =>
@@ -66,8 +73,7 @@ public class Program
         app.MapDefaultEndpoints();
 
         // Configure the HTTP request pipeline.
-        // Register global exception handling middleware
-        app.UseGlobalExceptionHandling();
+        // Exception handling via IExceptionHandler (no middleware needed)
 
         app.MapOpenApi();
         app.UseSwagger();

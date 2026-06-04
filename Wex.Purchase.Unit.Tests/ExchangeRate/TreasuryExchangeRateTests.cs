@@ -4,6 +4,7 @@ using Wex.Purchase.Manager.ExchangeRate;
 using Wex.Purchase.Manager.ExchangeRateConversion;
 using Xunit;
 using Serilog.Core;
+using Wex.Purchase.Common.Exceptions;
 
 namespace Wex.Purchase.Unit.Tests.ExchangeRate;
 
@@ -24,7 +25,7 @@ public class TreasuryExchangeRateTests
 
     /// <summary>
     /// Test: ConvertPurchaseAsync should retrieve exchange rate and convert amount correctly.
-    /// Validates that currency conversion applies the correct formula: ConvertedAmount = PurchaseAmount / ExchangeRate.
+    /// Validates that currency conversion applies the correct formula: ConvertedAmount = PurchaseAmount * ExchangeRate.
     /// </summary>
     [Fact]
     public async Task ConvertPurchaseAsync_ValidPurchaseAndRate_ConvertsCorrectly()
@@ -35,7 +36,7 @@ public class TreasuryExchangeRateTests
             Id = Guid.NewGuid(),
             Description = "Test Purchase",
             PurchaseAmount = 100.00m,
-            TransactionDate = DateOnly.FromDateTime(DateTime.Now)
+            TransactionDate = DateTime.Now
         };
 
         decimal exchangeRate = 1.10m; // EUR to USD: 1 USD = 1.10 EUR
@@ -49,8 +50,8 @@ public class TreasuryExchangeRateTests
         Assert.NotNull(result);
         Assert.Equal(purchase.Id, result.Purchase.Id);
         Assert.Equal(exchangeRate, result.ExchangeRate);
-        // Converted: 100.00 / 1.10 = 90.91 (rounded AwayFromZero)
-        Assert.Equal(Math.Round(100.00m / 1.10m, 2, MidpointRounding.AwayFromZero), result.ConvertedAmount);
+        // Converted: 100.00 * 1.10 = 110.00 (rounded AwayFromZero)
+        Assert.Equal(Math.Round(100.00m * 1.10m, 2, MidpointRounding.AwayFromZero), result.ConvertedAmount);
     }
 
     /// <summary>
@@ -66,7 +67,7 @@ public class TreasuryExchangeRateTests
             Id = Guid.NewGuid(),
             Description = "Test Purchase",
             PurchaseAmount = 100.00m,
-            TransactionDate = DateOnly.FromDateTime(DateTime.Now)
+            TransactionDate = DateTime.Now
         };
 
         _mockExchangeRateClient.Setup(c => c.GetExchangeRateWithFallbackAsync(It.IsAny<string>(), It.IsAny<DateOnly>(), It.IsAny<CancellationToken>()))
@@ -92,39 +93,40 @@ public class TreasuryExchangeRateTests
                 Id = Guid.NewGuid(),
                 Description = "Purchase 1",
                 PurchaseAmount = 100.00m,
-                TransactionDate = DateOnly.FromDateTime(DateTime.Now)
+                TransactionDate = DateTime.Now
             },
             new PurchaseDTO
             {
                 Id = Guid.NewGuid(),
                 Description = "Purchase 2",
                 PurchaseAmount = 200.00m,
-                TransactionDate = DateOnly.FromDateTime(DateTime.Now)
+                TransactionDate = DateTime.Now
             }
         };
 
-        var currencies = new[] { "EUR", "GBP" };
+        string currency = "EUR";
 
         _mockExchangeRateClient.Setup(c => c.GetExchangeRateWithFallbackAsync(It.IsAny<string>(), It.IsAny<DateOnly>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((string code, DateOnly date, CancellationToken ct) =>
             {
-                return code.ToUpper() switch
+                return code switch
                 {
                     "EUR" => 1.10m,
                     "GBP" => 1.25m,
-                    _ => 1.0m
+                    _ => throw new ExchangeRateNotFoundException(currency, DateOnly.FromDateTime(purchases[0].TransactionDate))
                 };
             });
 
         // Act
-        var results = await _conversionService.ConvertPurchasesAsync(purchases, currencies);
+        var results = await _conversionService.ConvertPurchasesAsync(purchases, currency);
 
         // Assert
         Assert.NotNull(results);
-        // 2 purchases × 2 currencies = 4 results
-        Assert.Equal(4, results.Count);
+        // 2 purchases converted to 1 currency = 2 results
+        Assert.Equal(2, results.Count);
         Assert.All(results, r => Assert.NotNull(r.Purchase));
-        Assert.All(results, r => Assert.True(r.ConvertedAmount > 0));
+        Assert.All(results, r => Assert.NotNull(r.ConvertedAmount));
+        Assert.All(results, r => Assert.True(r.ConvertedAmount.Value > 0));
     }
 
     /// <summary>
@@ -140,10 +142,10 @@ public class TreasuryExchangeRateTests
             Id = Guid.NewGuid(),
             Description = "Rounding Test",
             PurchaseAmount = 100.00m,
-            TransactionDate = DateOnly.FromDateTime(DateTime.Now)
+            TransactionDate = DateTime.Now
         };
 
-        // EUR to USD: 100 / 1.05 = 95.238...
+        // EUR to USD: 100 * 1.05 = 105.00
         decimal exchangeRate = 1.05m;
         _mockExchangeRateClient.Setup(c => c.GetExchangeRateWithFallbackAsync(It.IsAny<string>(), It.IsAny<DateOnly>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(exchangeRate);
@@ -152,7 +154,7 @@ public class TreasuryExchangeRateTests
         var result = await _conversionService.ConvertPurchaseAsync(purchase, "EUR");
 
         // Assert
-        Assert.Equal(Math.Round(100.00m / 1.05m, 2, MidpointRounding.AwayFromZero), result.ConvertedAmount);
+        Assert.Equal(Math.Round(100.00m * 1.05m, 2, MidpointRounding.AwayFromZero), result.ConvertedAmount);
     }
 
     /// <summary>
@@ -181,7 +183,7 @@ public class TreasuryExchangeRateTests
             Id = Guid.NewGuid(),
             Description = "Test",
             PurchaseAmount = 100.00m,
-            TransactionDate = DateOnly.FromDateTime(DateTime.Now)
+            TransactionDate = DateTime.Now
         };
 
         // Act & Assert

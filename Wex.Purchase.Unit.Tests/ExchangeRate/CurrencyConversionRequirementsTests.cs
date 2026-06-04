@@ -39,7 +39,7 @@ public class CurrencyConversionRequirementsTests
             Id = Guid.NewGuid(),
             Description = "Test Purchase",
             PurchaseAmount = 100.00m,
-            TransactionDate = purchaseDate
+            TransactionDate = purchaseDate.ToDateTime(TimeOnly.MinValue)
         };
 
         decimal exactRate = 1.23m;
@@ -52,7 +52,7 @@ public class CurrencyConversionRequirementsTests
         // Assert
         Assert.NotNull(result);
         Assert.Equal(exactRate, result.ExchangeRate);
-        decimal expectedConverted = Math.Round(100.00m / 1.23m, 2, MidpointRounding.AwayFromZero);
+        decimal expectedConverted = Math.Round(100.00m * 1.23m, 2, MidpointRounding.AwayFromZero);
         Assert.Equal(expectedConverted, result.ConvertedAmount);
     }
 
@@ -71,7 +71,7 @@ public class CurrencyConversionRequirementsTests
             Id = Guid.NewGuid(),
             Description = "Test Purchase",
             PurchaseAmount = 100.00m,
-            TransactionDate = purchaseDate
+            TransactionDate = purchaseDate.ToDateTime(TimeOnly.MinValue)
         };
 
         decimal olderRate = 1.15m;
@@ -95,13 +95,13 @@ public class CurrencyConversionRequirementsTests
         // Arrange - Rate is more than 6 months old
         var purchaseDate = DateOnly.FromDateTime(DateTime.UtcNow);
 
-        var purchase = new PurchaseDTO
-        {
-            Id = Guid.NewGuid(),
-            Description = "Test Purchase",
-            PurchaseAmount = 100.00m,
-            TransactionDate = purchaseDate
-        };
+                var purchase = new PurchaseDTO
+                {
+                    Id = Guid.NewGuid(),
+                    Description = "Test Purchase",
+                    PurchaseAmount = 100.00m,
+                    TransactionDate = purchaseDate.ToDateTime(TimeOnly.MinValue)
+                };
 
         _mockExchangeRateClient.Setup(c => c.GetExchangeRateWithFallbackAsync(It.IsAny<string>(), It.IsAny<DateOnly>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new InvalidOperationException("No exchange rate found for EUR on 2024-01-01 or in the past 6 months"));
@@ -122,13 +122,13 @@ public class CurrencyConversionRequirementsTests
         // Arrange - Rate date is after purchase date (future rate - invalid)
         var purchaseDate = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-10));
 
-        var purchase = new PurchaseDTO
-        {
-            Id = Guid.NewGuid(),
-            Description = "Test Purchase",
-            PurchaseAmount = 100.00m,
-            TransactionDate = purchaseDate
-        };
+                var purchase = new PurchaseDTO
+                {
+                    Id = Guid.NewGuid(),
+                    Description = "Test Purchase",
+                    PurchaseAmount = 100.00m,
+                    TransactionDate = purchaseDate.ToDateTime(TimeOnly.MinValue)
+                };
 
         // Simulate scenario where no valid rate exists (future rate would be invalid)
         _mockExchangeRateClient.Setup(c => c.GetExchangeRateWithFallbackAsync(It.IsAny<string>(), It.IsAny<DateOnly>(), It.IsAny<CancellationToken>()))
@@ -151,7 +151,7 @@ public class CurrencyConversionRequirementsTests
             Id = Guid.NewGuid(),
             Description = "Test Purchase",
             PurchaseAmount = 100.00m,
-            TransactionDate = DateOnly.FromDateTime(DateTime.UtcNow)
+            TransactionDate = DateTime.UtcNow
         };
 
         _mockExchangeRateClient.Setup(c => c.GetExchangeRateWithFallbackAsync(It.IsAny<string>(), It.IsAny<DateOnly>(), It.IsAny<CancellationToken>()))
@@ -176,7 +176,7 @@ public class CurrencyConversionRequirementsTests
             Id = Guid.NewGuid(),
             Description = "Test Purchase",
             PurchaseAmount = 100.00m,
-            TransactionDate = DateOnly.FromDateTime(DateTime.UtcNow)
+            TransactionDate = DateTime.UtcNow
         };
 
         _mockExchangeRateClient.Setup(c => c.GetExchangeRateWithFallbackAsync(It.IsAny<string>(), It.IsAny<DateOnly>(), It.IsAny<CancellationToken>()))
@@ -198,13 +198,13 @@ public class CurrencyConversionRequirementsTests
     [Fact]
     public async Task ConvertPurchase_RoundsToTwoDecimalPlaces_AwayFromZero()
     {
-        // Arrange - 100 / 1.15 = 86.956521... should round to 86.96
+        // Arrange - 100 * 1.15 = 115.00 should round to 115.00
         var purchase = new PurchaseDTO
         {
             Id = Guid.NewGuid(),
             Description = "Rounding Test",
             PurchaseAmount = 100.00m,
-            TransactionDate = DateOnly.FromDateTime(DateTime.UtcNow)
+            TransactionDate = DateTime.UtcNow
         };
 
         decimal rate = 1.15m;
@@ -215,8 +215,9 @@ public class CurrencyConversionRequirementsTests
         var result = await _conversionService.ConvertPurchaseAsync(purchase, "EUR");
 
         // Assert - Verify exactly 2 decimal places
-        Assert.Equal(2, decimal.GetBits(result.ConvertedAmount)[3] >> 16);  // Scale should be 2
-        decimal expected = Math.Round(100.00m / 1.15m, 2, MidpointRounding.AwayFromZero);
+        Assert.NotNull(result.ConvertedAmount);
+        Assert.Equal(2, decimal.GetBits(result.ConvertedAmount.Value)[3] >> 16);  // Scale should be 2
+        decimal expected = Math.Round(100.00m * 1.15m, 2, MidpointRounding.AwayFromZero);
         Assert.Equal(expected, result.ConvertedAmount);
     }
 
@@ -233,7 +234,7 @@ public class CurrencyConversionRequirementsTests
             Id = Guid.NewGuid(),
             Description = "Edge Case Rounding",
             PurchaseAmount = 10.555m,
-            TransactionDate = DateOnly.FromDateTime(DateTime.UtcNow)
+            TransactionDate = DateTime.UtcNow
         };
 
         decimal rate = 1.0m;
@@ -243,7 +244,7 @@ public class CurrencyConversionRequirementsTests
         // Act
         var result = await _conversionService.ConvertPurchaseAsync(purchase, "EUR");
 
-        // Assert - 10.555 / 1.0 = 10.555 should round to 10.56
+        // Assert - 10.555 * 1.0 = 10.555 should round to 10.56
         Assert.Equal(10.56m, result.ConvertedAmount);
     }
 
@@ -256,28 +257,28 @@ public class CurrencyConversionRequirementsTests
         // Arrange
         var purchases = new List<PurchaseDTO>
         {
-            new PurchaseDTO
-            {
-                Id = Guid.NewGuid(),
-                Description = "Purchase 1",
-                PurchaseAmount = 100.50m,
-                TransactionDate = DateOnly.FromDateTime(DateTime.UtcNow)
-            },
-            new PurchaseDTO
-            {
-                Id = Guid.NewGuid(),
-                Description = "Purchase 2",
-                PurchaseAmount = 250.75m,
-                TransactionDate = DateOnly.FromDateTime(DateTime.UtcNow)
-            }
-        };
+                new PurchaseDTO
+                {
+                    Id = Guid.NewGuid(),
+                    Description = "Purchase 1",
+                    PurchaseAmount = 100.50m,
+                    TransactionDate = DateTime.UtcNow
+                },
+                new PurchaseDTO
+                {
+                    Id = Guid.NewGuid(),
+                    Description = "Purchase 2",
+                    PurchaseAmount = 250.75m,
+                    TransactionDate = DateTime.UtcNow
+                }
+            };
 
-        var currencies = new[] { "EUR", "GBP" };
+        string currency = "Peso";
 
         _mockExchangeRateClient.Setup(c => c.GetExchangeRateWithFallbackAsync(It.IsAny<string>(), It.IsAny<DateOnly>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((string code, DateOnly date, CancellationToken ct) =>
             {
-                return code.ToUpper() switch
+                return code switch
                 {
                     "EUR" => 1.10m,
                     "GBP" => 1.25m,
@@ -286,15 +287,16 @@ public class CurrencyConversionRequirementsTests
             });
 
         // Act
-        var results = await _conversionService.ConvertPurchasesAsync(purchases, currencies);
+        var results = await _conversionService.ConvertPurchasesAsync(purchases, currency);
 
         // Assert - All results should have exactly 2 decimal places
         Assert.NotNull(results);
         foreach (var result in results)
         {
+            Assert.NotNull(result.ConvertedAmount);
             Assert.True(result.ConvertedAmount > 0);
             // Verify scale is 2 (exactly 2 decimal places)
-            int scale = decimal.GetBits(result.ConvertedAmount)[3] >> 16;
+            int scale = decimal.GetBits(result.ConvertedAmount.Value)[3] >> 16;
             Assert.True(scale <= 2, $"Amount {result.ConvertedAmount} has scale {scale}, expected <= 2");
         }
     }
@@ -306,7 +308,7 @@ public class CurrencyConversionRequirementsTests
     public async Task ConvertPurchase_FullRequirementValidation_Success()
     {
         // Arrange - Simulates complete workflow
-        var purchaseDate = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-15));
+        var purchaseDate = DateTime.UtcNow.AddDays(-15);
         var purchase = new PurchaseDTO
         {
             Id = Guid.NewGuid(),
@@ -317,7 +319,7 @@ public class CurrencyConversionRequirementsTests
 
         // Rate that would be within 6 months but before purchase date
         decimal rate = 1.18m;
-        _mockExchangeRateClient.Setup(c => c.GetExchangeRateWithFallbackAsync("EUR", purchaseDate, It.IsAny<CancellationToken>()))
+        _mockExchangeRateClient.Setup(c => c.GetExchangeRateWithFallbackAsync("EUR", DateOnly.FromDateTime(purchaseDate), It.IsAny<CancellationToken>()))
             .ReturnsAsync(rate);
 
         // Act
@@ -328,12 +330,13 @@ public class CurrencyConversionRequirementsTests
         Assert.Equal(purchase.Id, result.Purchase.Id);
         Assert.Equal(rate, result.ExchangeRate);
 
-        // Verify conversion formula: 1000 / 1.18 = 847.457... ≈ 847.46
-        decimal expected = Math.Round(1000.00m / 1.18m, 2, MidpointRounding.AwayFromZero);
+        // Verify conversion formula: 1000 * 1.18 = 1180.00
+        decimal expected = Math.Round(1000.00m * 1.18m, 2, MidpointRounding.AwayFromZero);
         Assert.Equal(expected, result.ConvertedAmount);
 
         // Verify exactly 2 decimal places
-        int scale = decimal.GetBits(result.ConvertedAmount)[3] >> 16;
+        Assert.NotNull(result.ConvertedAmount);
+        int scale = decimal.GetBits(result.ConvertedAmount.Value)[3] >> 16;
         Assert.True(scale <= 2, $"Scale should be <= 2, got {scale}");
     }
 }

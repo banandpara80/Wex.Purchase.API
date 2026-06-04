@@ -19,12 +19,12 @@ namespace Wex.Purchase.Unit.Tests.Manager;
 public class PurchaseManagerTests
 {
     private readonly Mock<IPurchaseRepository> _purchaseRepositoryMock;
-    private readonly PurchaseManager purchaseManager;
+    private readonly PurchaseManager _purchaseManager;
 
     public PurchaseManagerTests()
     {
         _purchaseRepositoryMock = new Mock<IPurchaseRepository>();
-        purchaseManager = new PurchaseManager(Logger.None, _purchaseRepositoryMock.Object);
+        _purchaseManager = new PurchaseManager(Logger.None, _purchaseRepositoryMock.Object);
     }
 
     /// <summary>
@@ -36,10 +36,10 @@ public class PurchaseManagerTests
     {
         // Arrange
         _purchaseRepositoryMock.Setup(r => r.AddAsync(It.IsAny<PurchaseBO>(), It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
-        var dto = new PurchaseDTO { Id = Guid.NewGuid(), Description = "X", PurchaseAmount = 2.0m, TransactionDate = DateOnly.FromDateTime(DateTime.Now) };
+        var dto = new PurchaseDTO { Id = Guid.NewGuid(), Description = "X", PurchaseAmount = 2.0m, TransactionDate = DateTime.Now };
 
         // Act
-        var result = await purchaseManager.AddPurchase(dto);
+        var result = await _purchaseManager.AddPurchase(dto);
 
         // Assert
         Assert.NotNull(result);
@@ -60,10 +60,10 @@ public class PurchaseManagerTests
             .Returns(Task.CompletedTask);
 
         // 2.345 rounded to 2 decimals using MidpointRounding.AwayFromZero -> 2.35
-        var dto = new PurchaseDTO { Id = Guid.NewGuid(), Description = "Rounding", PurchaseAmount = 2.345m, TransactionDate = DateOnly.FromDateTime(DateTime.Now) };
+        var dto = new PurchaseDTO { Id = Guid.NewGuid(), Description = "Rounding", PurchaseAmount = 2.345m, TransactionDate = DateTime.Now };
 
         // Act
-        var result = await purchaseManager.AddPurchase(dto);
+        var result = await _purchaseManager.AddPurchase(dto);
 
         // Assert
         Assert.NotNull(captured);
@@ -79,13 +79,13 @@ public class PurchaseManagerTests
     public async Task GetPurchaseTransactions_ReturnsMappedList()
     {
         // Arrange
-        var bos = new List<PurchaseBO> { new PurchaseBO { Id = Guid.NewGuid(), Description = "X", PurchaseAmount = 3.3m, TransactionDate = DateOnly.FromDateTime(DateTime.Now) } };
+        var bos = new List<PurchaseBO> { new PurchaseBO { Id = Guid.NewGuid(), Description = "X", PurchaseAmount = 3.3m, TransactionDate = DateTime.Now } }; 
         _purchaseRepositoryMock.Setup(r => r.GetPurchaseTransactions(It.IsAny<Guid[]>(), It.IsAny<CancellationToken>())).ReturnsAsync(bos);
 
-        var request = new PurchaseRequestDTO { Ids = new Guid[] { bos[0].Id }, Currency = new string[] { "USD" } };
+        var request = new PurchaseRequestDTO { Ids = bos[0].Id.ToString(), Currency = "USD" };
 
         // Act
-        var dtoList = await purchaseManager.GetPurchaseTransactions(request);
+        var dtoList = await _purchaseManager.GetPurchaseTransactions(request);
 
         // Assert
         Assert.NotNull(dtoList);
@@ -99,11 +99,11 @@ public class PurchaseManagerTests
     public async Task GetPurchaseOrderById_ReturnsMappedDto()
     {
         // Arrange
-        var bo = new PurchaseBO { Id = Guid.NewGuid(), Description = "Order", PurchaseAmount = 4.4m, TransactionDate = DateOnly.FromDateTime(DateTime.Now) };
+        var bo = new PurchaseBO { Id = Guid.NewGuid(), Description = "Order", PurchaseAmount = 4.4m, TransactionDate = DateTime.Now }; 
         _purchaseRepositoryMock.Setup(r => r.GetByIdAsync(bo.Id, It.IsAny<CancellationToken>())).ReturnsAsync(bo);
 
         // Act
-        var dto = await purchaseManager.GetPurchaseOrderById(bo.Id);
+        var dto = await _purchaseManager.GetPurchaseOrderById(bo.Id);
 
         // Assert
         Assert.NotNull(dto);
@@ -120,10 +120,10 @@ public class PurchaseManagerTests
     {
         // Arrange
         _purchaseRepositoryMock.Setup(r => r.AddAsync(It.IsAny<PurchaseBO>(), It.IsAny<CancellationToken>())).ThrowsAsync(new Exception("db error"));
-        var dto = new PurchaseDTO { Id = Guid.NewGuid(), Description = "Fail", PurchaseAmount = 1.0m, TransactionDate = DateOnly.FromDateTime(DateTime.Now) };
+        var dto = new PurchaseDTO { Id = Guid.NewGuid(), Description = "Fail", PurchaseAmount = 1.0m, TransactionDate = DateTime.Now };
 
         // Act & Assert
-        await Assert.ThrowsAsync<Wex.Purchase.Common.Exceptions.PurchaseDatabaseException>(async () => await purchaseManager.AddPurchase(dto));
+        await Assert.ThrowsAsync<Wex.Purchase.Common.Exceptions.PurchaseDatabaseException>(async () => await _purchaseManager.AddPurchase(dto));
     }
 
     /// <summary>
@@ -133,10 +133,10 @@ public class PurchaseManagerTests
     public async Task GetPurchaseTransactionsWithConversions_NoExchangeService_ThrowsInvalidOperationException()
     {
         // Arrange
-        var request = new PurchaseRequestDTO { Ids = new Guid[0], Currency = new[] { "EUR" } };
+        var request = new PurchaseRequestDTO { Ids = string.Empty, Currency = "USD"  };
 
         // Act & Assert
-        await Assert.ThrowsAsync<InvalidOperationException>(async () => await purchaseManager.GetPurchaseTransactionsWithConversions(request));
+        await Assert.ThrowsAsync<InvalidOperationException>(async () => await _purchaseManager.GetPurchaseTransactionsWithConversions(request));
     }
 
     /// <summary>
@@ -146,7 +146,7 @@ public class PurchaseManagerTests
     public async Task GetPurchaseTransactionsWithConversions_WithService_ReturnsConvertedList()
     {
         // Arrange
-        var bo = new PurchaseBO { Id = Guid.NewGuid(), Description = "Conv", PurchaseAmount = 100m, TransactionDate = DateOnly.FromDateTime(DateTime.Now) };
+        var bo = new PurchaseBO { Id = Guid.NewGuid(), Description = "Conv", PurchaseAmount = 100m, TransactionDate = DateTime.Now };
         _purchaseRepositoryMock.Setup(r => r.GetPurchaseTransactions(It.IsAny<Guid[]>(), It.IsAny<CancellationToken>())).ReturnsAsync(new List<PurchaseBO> { bo });
 
         var converted = new PurchaseWithExchangeRateDTO
@@ -157,11 +157,11 @@ public class PurchaseManagerTests
         };
 
         var mockConv = new Mock<IExchangeRateConversionService>();
-        mockConv.Setup(s => s.ConvertPurchasesAsync(It.IsAny<IList<PurchaseDTO>>(), It.IsAny<string[]>(), It.IsAny<CancellationToken>())).ReturnsAsync(new List<PurchaseWithExchangeRateDTO> { converted });
+        mockConv.Setup(s => s.ConvertPurchasesAsync(It.IsAny<IList<PurchaseDTO>>(), "USD", It.IsAny<CancellationToken>())).ReturnsAsync(new List<PurchaseWithExchangeRateDTO> { converted });
 
         var managerWithConv = new PurchaseManager(Logger.None, _purchaseRepositoryMock.Object, mockConv.Object);
 
-        var request = new PurchaseRequestDTO { Ids = new Guid[] { bo.Id }, Currency = new[] { "EUR" } };
+        var request = new PurchaseRequestDTO { Ids = bo.Id.ToString(), Currency = "USD" };
 
         // Act
         var result = await managerWithConv.GetPurchaseTransactionsWithConversions(request);
@@ -170,7 +170,7 @@ public class PurchaseManagerTests
         Assert.NotNull(result);
         Assert.Single(result);
         Assert.Equal(converted.Purchase.Id, result[0].Purchase.Id);
-        mockConv.Verify(s => s.ConvertPurchasesAsync(It.IsAny<IList<PurchaseDTO>>(), It.IsAny<string[]>(), It.IsAny<CancellationToken>()), Times.Once);
+        mockConv.Verify(s => s.ConvertPurchasesAsync(It.IsAny<IList<PurchaseDTO>>(), "USD", It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
@@ -183,7 +183,7 @@ public class PurchaseManagerTests
         var convMock = new Mock<IExchangeRateConversionService>();
         var manager = new PurchaseManager(Logger.None, repoMock.Object, convMock.Object);
 
-        var request = new PurchaseRequestDTO { Ids = new Guid[0], Currency = new string[0] };
+        var request = new PurchaseRequestDTO { Ids = Guid.NewGuid().ToString(), Currency = "USD" };
 
         // Act & Assert
         await Assert.ThrowsAsync<Wex.Purchase.Common.Exceptions.PurchaseDatabaseException>(async () => await manager.GetPurchaseTransactions(request));

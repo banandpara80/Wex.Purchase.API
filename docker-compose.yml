@@ -1,23 +1,55 @@
-version: '3.8'
 services:
-  db:
-    image: postgres:15-alpine
+  postgres:
+    image: postgres:16
+    container_name: wex-postgres
     environment:
-      POSTGRES_USER: purchase
-      POSTGRES_PASSWORD: purchase
-      POSTGRES_DB: purchase_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: wex_purchase_db
     ports:
       - "5432:5432"
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+    image: wex-purchase-api:latest
+    container_name: wex-api
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=wex_purchase_db;Username=postgres;Password=postgres;"
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   seq:
-    image: datalust/seq:2024.1
+    image: datalust/seq:latest
+    container_name: seq_dashboard
+    restart: unless-stopped
     ports:
-      - "5341:80"
+      - "8081:80"      # Web UI Dashboard (Accessible at http://localhost:8081)
+      - "5341:5341"    # Ingestion Port for logs
+    environment:
+      - ACCEPT_EULA=Y  # Mandatory to accept the Seq license agreement
+      - SEQ_FIRSTRUN_NOAUTHENTICATION=True
+
     volumes:
-      - seqdata:/data
+      - seq_data:/data
 
 volumes:
-  pgdata:
-  seqdata:
+  postgres_data:
+  seq_data:

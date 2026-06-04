@@ -39,7 +39,7 @@ public class TreasuryExchangeRateRecord
     /// Accepts both "exchange_rate" and "ExchangeRate" JSON property names.
     /// </summary>
     [JsonPropertyName("exchange_rate")]
-    public decimal Exchange_Rate { get; set; }
+    public decimal ExchangeRate { get; set; }
 
     /// <summary>
     /// Gets or sets the effective date for this exchange rate (format: yyyy-MM-dd).

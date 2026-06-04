@@ -1,8 +1,9 @@
 ﻿using Serilog;
 using System.ComponentModel.DataAnnotations;
 using Wex.Purchase.BusinessModels;
-using Wex.Purchase.Manager;
 using Wex.Purchase.Common.Exceptions;
+using Wex.Purchase.Manager;
+using Wex.Purchase.Repository.Entity;
 
 namespace Wex.Purchase.Service
 {
@@ -12,8 +13,8 @@ namespace Wex.Purchase.Service
     /// </summary>
     public class PurchaseService : IPurchaseService
     {
-        private readonly IPurchaseManager purchaseManager;
-        private readonly ILogger Logger;
+        private readonly IPurchaseManager _purchaseManager;
+        private readonly ILogger _logger;
 
         /// <summary>
         /// Initializes a new instance of the PurchaseService class.
@@ -21,8 +22,8 @@ namespace Wex.Purchase.Service
         /// <param name="purchaseManager">The purchase manager for business logic operations.</param>
         public PurchaseService(ILogger logger, IPurchaseManager purchaseManager)
         {
-            this.Logger = logger;
-            this.purchaseManager = purchaseManager;
+            this._logger = logger;
+            this._purchaseManager = purchaseManager;
         }
 
         /// <summary>
@@ -43,7 +44,7 @@ namespace Wex.Purchase.Service
                 throw new PurchaseValidationException("Purchase validation failed", errors);
             }
 
-            return await purchaseManager.AddPurchase(purchaseDTO, cancellationToken);
+            return await _purchaseManager.AddPurchase(purchaseDTO, cancellationToken);
         }
 
         /// <summary>
@@ -69,15 +70,28 @@ namespace Wex.Purchase.Service
             if (purchaseRequestDTO == null)
                 throw new PurchaseValidationException("Purchase request cannot be null");
 
-            // Validate request has currencies specified
-            if (purchaseRequestDTO.Currency == null || purchaseRequestDTO.Currency.Length == 0)
-                throw new PurchaseValidationException("Target currency codes must be specified for conversion");
+            // Validate incoming DTO
+            var validationContext = new ValidationContext(purchaseRequestDTO);
+            var validationResults = new List<ValidationResult>();
 
-            // Basic request validation
-            if (purchaseRequestDTO.Ids == null || purchaseRequestDTO.Ids.Length == 0)
-                return new List<PurchaseWithExchangeRateDTO>();
+            if (!Validator.TryValidateObject(purchaseRequestDTO, validationContext, validationResults, true))
+            {
+                var errors = validationResults.Select(r => r.ErrorMessage).Where(m => !string.IsNullOrEmpty(m)).ToList();
+                throw new PurchaseValidationException("Purchase request validation failed", errors);
+            }
 
-            return await purchaseManager.GetPurchaseTransactionsWithConversions(purchaseRequestDTO, cancellationToken);
+            
+             
+
+            try
+            {
+                return await _purchaseManager.GetPurchaseTransactionsWithConversions(purchaseRequestDTO, cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                _logger.Error(ex, "Error retrieving purchase transactions with conversions");
+                throw;
+            }
         }
     }
 }

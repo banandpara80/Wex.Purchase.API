@@ -1,6 +1,8 @@
 using Serilog;
 using Wex.Purchase.BusinessModels;
+using Wex.Purchase.Common.Exceptions;
 using Wex.Purchase.Manager.ExchangeRate;
+using Wex.Purchase.Repository.Entity;
 
 namespace Wex.Purchase.Manager.ExchangeRateConversion;
 
@@ -26,7 +28,7 @@ public interface IExchangeRateConversionService
     /// <param name="targetCurrencyCodes">Array of ISO 4217 target currency codes.</param>
     /// <param name="cancellationToken">Cancellation token for the async operation.</param>
     /// <returns>Collection of enriched purchase DTOs with conversion details.</returns>
-    Task<IList<PurchaseWithExchangeRateDTO>> ConvertPurchasesAsync(IList<PurchaseDTO> purchases, string[] targetCurrencyCodes, CancellationToken cancellationToken = default);
+    Task<IList<PurchaseWithExchangeRateDTO>> ConvertPurchasesAsync(IList<PurchaseDTO> purchases, string targetCurrencyCodes, CancellationToken cancellationToken = default);
 }
 
 /// <summary>
@@ -46,6 +48,7 @@ public class ExchangeRateConversionService : IExchangeRateConversionService
 
     /// <summary>
     /// Converts a purchase amount to a target currency using the exchange rate for the transaction date.
+    /// Returns a result with a note if the exchange rate is not available instead of throwing.
     /// </summary>
     public async Task<PurchaseWithExchangeRateDTO> ConvertPurchaseAsync(PurchaseDTO purchase, string targetCurrencyCode, CancellationToken cancellationToken = default)
     {
@@ -59,11 +62,12 @@ public class ExchangeRateConversionService : IExchangeRateConversionService
 
         try
         {
+            DateOnly purhaseDate = DateOnly.FromDateTime(purchase.TransactionDate);
             // Use the new method with fallback to most recent rate in the past 6 months
-            var exchangeRate = await _exchangeRateClient.GetExchangeRateWithFallbackAsync(targetCurrencyCode, purchase.TransactionDate, cancellationToken);
+            var exchangeRate = await _exchangeRateClient.GetExchangeRateWithFallbackAsync(targetCurrencyCode, purhaseDate, cancellationToken);
 
-            // Convert: ConvertedAmount = PurchaseAmount / ExchangeRate
-            decimal convertedAmount = purchase.PurchaseAmount / exchangeRate;
+            // Convert: ConvertedAmount = PurchaseAmount * ExchangeRate
+            decimal convertedAmount = purchase.PurchaseAmount * exchangeRate;
 
             var result = new PurchaseWithExchangeRateDTO
             {
@@ -78,9 +82,19 @@ public class ExchangeRateConversionService : IExchangeRateConversionService
 
             return result;
         }
-        catch (InvalidOperationException)
+        catch (ExchangeRateNotFoundException ex)
         {
-            throw;
+            _logger.Warning(ex, "Exchange rate not available for purchase {PurchaseId} to {CurrencyCode} on {TransactionDate}", purchase.Id, targetCurrencyCode, purchase.TransactionDate);
+
+            // Return result with note indicating exchange rate is not available
+            return new PurchaseWithExchangeRateDTO
+            {
+                Purchase = purchase,
+                ExchangeRate = null,
+                ConvertedAmount = null,
+                ExchangeRateEffectiveDate = null,
+                Note = $"Exchange rate not available for currency '{targetCurrencyCode}' on {purchase.TransactionDate:yyyy-MM-dd} or in the past 6 months."
+            };
         }
         catch (Exception ex)
         {
@@ -91,39 +105,26 @@ public class ExchangeRateConversionService : IExchangeRateConversionService
 
     /// <summary>
     /// Converts multiple purchases to target currencies in parallel.
+    /// Returns results for all purchases, with notes for those where exchange rates are not available.
     /// </summary>
-    public async Task<IList<PurchaseWithExchangeRateDTO>> ConvertPurchasesAsync(IList<PurchaseDTO> purchases, string[] targetCurrencyCodes, CancellationToken cancellationToken = default)
+    public async Task<IList<PurchaseWithExchangeRateDTO>> ConvertPurchasesAsync(IList<PurchaseDTO> purchases, string targetCurrencyCode, CancellationToken cancellationToken = default)
     {
         if (purchases == null || purchases.Count == 0)
             throw new ArgumentException("Purchases list cannot be null or empty", nameof(purchases));
 
-        if (targetCurrencyCodes == null || targetCurrencyCodes.Length == 0)
-            throw new ArgumentException("Target currency codes array cannot be null or empty", nameof(targetCurrencyCodes));
+        if (String.IsNullOrEmpty(targetCurrencyCode)) 
+            throw new ArgumentException("Target currency code cannot be null or empty", nameof(targetCurrencyCode));
 
-        _logger.Information("Converting {PurchaseCount} purchases to {CurrencyCount} currencies", purchases.Count, targetCurrencyCodes.Length);
+        _logger.Information("Converting {PurchaseCount} purchases to currency {CurrencyCode}", purchases.Count, targetCurrencyCode);
 
-        try
-        {
-            // Create conversion tasks for all combinations
-            var conversionTasks = new List<Task<PurchaseWithExchangeRateDTO>>();
+        var conversionTasks = purchases.Select(purchase => ConvertPurchaseAsync(purchase, targetCurrencyCode, cancellationToken)).ToList();
+        var results = await Task.WhenAll(conversionTasks);
 
-            foreach (var purchase in purchases)
-            {
-                foreach (var currencyCode in targetCurrencyCodes)
-                {
-                    conversionTasks.Add(ConvertPurchaseAsync(purchase, currencyCode, cancellationToken));
-                }
-            }
+        _logger.Information("Successfully processed {ResultCount} purchases. Available rates: {AvailableCount}, Not available: {NotAvailableCount}", 
+            results.Length, 
+            results.Count(r => r.ExchangeRate.HasValue),
+            results.Count(r => !r.ExchangeRate.HasValue));
 
-            var results = await Task.WhenAll(conversionTasks);
-
-            _logger.Information("Successfully converted {ResultCount} purchase-currency combinations", results.Length);
-            return results.ToList();
-        }
-        catch (Exception ex)
-        {
-            _logger.Error(ex, "Error converting multiple purchases");
-            throw;
-        }
+        return results.ToList();
     }
 }
