@@ -21,70 +21,16 @@ public class TreasuryExchangeRateClient : ITreasuryExchangeRateClient
     // In-memory cache: Key = "CurrencyCode|DateOnly", Value = exchange rate
     private static readonly ConcurrentDictionary<string, decimal> ExchangeRateCache = new();
 
-    // Simple rate limiting state (sliding window)
-    private readonly object _rateLimitLock = new();
-    private readonly Queue<DateTime> _requestTimestamps = new();
-    private readonly int _maxRequestsPerWindow;
-    private readonly TimeSpan _rateLimitWindow = TimeSpan.FromMinutes(1);
-
     // API endpoint for Treasury exchange rates
     private const string TreasuryApiBaseUrl = "https://api.fiscaldata.treasury.gov/services/api/fiscal_service";
     private const string ExchangeRatesEndpoint = "/v1/accounting/od/rates_of_exchange";
     private const string ExchangeRateFields = "fields=record_date,country,currency,country_currency_desc,exchange_rate";
 
-    /// <summary>
-    /// Creates a new client with optional rate limit (max requests per minute).
-    /// Default is 60 requests per minute.
-    /// </summary>
-    public TreasuryExchangeRateClient(HttpClient httpClient, ILogger logger, int maxRequestsPerMinute = 60)
+    public TreasuryExchangeRateClient(HttpClient httpClient, ILogger logger)
     {
         _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _cacheManager = new ExchangeRateCacheManager(httpClient, logger);
-        _maxRequestsPerWindow = Math.Max(1, maxRequestsPerMinute);
-    }
-
-    private async Task EnsureRateLimitAsync(CancellationToken ct)
-    {
-        DateTime now = DateTime.UtcNow;
-
-        while (true)
-        {
-            TimeSpan wait = TimeSpan.Zero;
-            lock (_rateLimitLock)
-            {
-                // Evict timestamps outside the rolling window
-                while (_requestTimestamps.Count > 0 && (now - _requestTimestamps.Peek()) >= _rateLimitWindow)
-                {
-                    _requestTimestamps.Dequeue();
-                }
-
-n                if (_requestTimestamps.Count < _maxRequestsPerWindow)
-                {
-                    _requestTimestamps.Enqueue(now);
-                    return;
-                }
-
-n                var oldest = _requestTimestamps.Peek();
-                wait = _rateLimitWindow - (now - oldest);
-                if (wait < TimeSpan.Zero) wait = TimeSpan.Zero;
-            }
-
-            if (wait > TimeSpan.Zero)
-            {
-                _logger.Information("Rate limit reached. Waiting {Delay} before retrying.", wait);
-                try
-                {
-                    await Task.Delay(wait, ct);
-                }
-                catch (OperationCanceledException)
-                {
-                    throw;
-                }
-            }
-
-n            now = DateTime.UtcNow;
-        }
     }
 
     /// <summary>
@@ -113,9 +59,6 @@ n            now = DateTime.UtcNow;
             string dateString = transactionDate.ToString("yyyy-MM-dd");
             string filter = $"filter=currency:eq:{currencyCode},effective_date:lt:{dateString}";
             string url = $"{TreasuryApiBaseUrl}{ExchangeRatesEndpoint}?{ExchangeRateFields}&{filter}&limit=1";
-
-            // Ensure we respect the configured rate limit before making an external call
-            await EnsureRateLimitAsync(cancellationToken);
 
             using var response = await _httpClient.GetAsync(url, cancellationToken);
             response.EnsureSuccessStatusCode();
