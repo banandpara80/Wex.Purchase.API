@@ -131,8 +131,8 @@ namespace Wex.Purchase.Manager
                 purchaseRequestDTO.Currency,
                 cancellationToken);
 
-            _logger.Information("Successfully converted {PurchaseCount} purchases to {CurrencyCount} currencies",
-                purchases.Count, purchaseRequestDTO.Currency.Length);
+            _logger.Information("Successfully converted {PurchaseCount} purchases to {Currency} currencies",
+                purchases.Count, purchaseRequestDTO.Currency);
 
             return convertedPurchases;
            

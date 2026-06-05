@@ -102,7 +102,7 @@ public class ExchangeRateCacheManager
             string endDateStr = endDate.ToString("yyyy-MM-dd");
 
             // Build API query for the 6-month period before the transaction date
-            string filter = $"filter=record_date:gte:{startDateStr},record_date:lte:{endDateStr},country_currency_desc:eq:{countryCurrencyDesc}";
+            string filter = $"filter=record_date:lte:{startDateStr},record_date:gte:{endDateStr},country_currency_desc:eq:{countryCurrencyDesc}";
             string url = $"{TreasuryApiBaseUrl}{ExchangeRatesEndpoint}?{ExchangeRateFields}&{filter}&limit=10000";
 
             // Wrap HTTP call with circuit breaker - only this specific external API call should be protected
