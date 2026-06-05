@@ -137,6 +137,48 @@ dotnet test .\Wex.Purchase.Integration.Tests\Wex.Purchase.Integration.Tests.cspr
 Integration tests utilize **TestContainers** to provision dependent services dynamically, ensuring test execution closely mirrors production environments.
 
 ---
+## Key Architecture Decisions
+
+### API Design
+
+- The endpoint  
+  `/api/v1/purchase/transactions/with-conversions`  
+  is implemented as a **POST** instead of a GET.
+
+  This design choice was made to support a large number of comma-separated purchase IDs in the request body, which would exceed practical URL length limits for GET requests.
+
+- A `note` field has been introduced in the response model to handle **partial failures**.
+
+  This allows the API to return a mix of successful and failed conversions in a single response, such as:
+  - Invalid purchase IDs
+  - Missing exchange rate data
+
+  This ensures the API remains resilient and informative rather than failing the entire request.
+
+### Database Design
+
+- `TransactionDate` is stored as a **timestamp** to support auditing requirements and preserve full transaction time context.
+
+- A separate field, `ExchangeRateDate`, is maintained internally as a **date-only value**.
+
+  This avoids issues caused by timezone conversions where transactions occurring late at night may roll over to the next UTC day, potentially causing incorrect exchange rate lookups.
+
+- The primary key `Id` is implemented as a **GUID**.
+
+  This ensures:
+  - No ID collisions across distributed systems
+  - Safe horizontal database scaling
+  - Better support for microservice-based or sharded architectures
+
+### Caching Strategy
+
+- Exchange rates are cached for **6 hours** per:
+  - `TransactionDate`
+  - `Currency`
+
+This significantly improves performance by reducing repeated external or database calls while still maintaining reasonable data freshness for financial calculations.
+
+---
 
 ## Production Readiness
 
