@@ -22,7 +22,6 @@ services:
     build:
       context: .
       dockerfile: ./Dockerfile
-      target: publish-with-ui
     image: wex-purchase-api:latest
     container_name: wex-api
     environment:
@@ -36,11 +35,6 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
     networks:
       - wex-network
 
@@ -56,13 +50,8 @@ services:
     ports:
       - "8085:8080"
     depends_on:
-      api:
+      postgres:
         condition: service_healthy
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
     networks:
       - wex-network
 

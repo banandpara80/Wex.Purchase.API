@@ -60,6 +60,8 @@ public class Program
 
         var app = builder.Build();
 
+        app.MapGet("/", () => "Wex Purchase API");
+
         // Register global exception handling middleware so all exceptions (including from controllers/services)
         // are captured and normalized into ErrorResponse objects.
         app.UseGlobalExceptionHandling();

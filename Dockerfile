@@ -28,7 +28,7 @@ COPY . .
 WORKDIR "/src/Wex.Purchase.API"
 RUN dotnet build "./Wex.Purchase.API.csproj" -c Release -o /app/build
 
-# Build UI and copy static files to wwwroot
+# Build UI
 WORKDIR "/src/Wex.Purchase.UI"
 RUN dotnet build "./Wex.Purchase.UI.csproj" -c Release -o /app/ui-build
 
@@ -37,16 +37,17 @@ FROM build AS test
 WORKDIR /src
 RUN echo "Running Unit Tests..." && dotnet test "./Wex.Purchase.Unit.Tests/Wex.Purchase.Unit.Tests.csproj" -c Release --no-build --logger "console;verbosity=normal"
 
-# Publish depends on test, ensuring tests run first
-FROM test AS publish
+# Publish API depends on test, ensuring tests run first
+FROM test AS publish-api
 WORKDIR /src/Wex.Purchase.API
 RUN dotnet publish "./Wex.Purchase.API.csproj" -c Release -o /app/publish /p:UseAppHost=false
 
-# Copy UI static files to API wwwroot if needed
-FROM publish AS publish-with-ui
+# Publish UI
+FROM test AS publish-ui
 WORKDIR /src/Wex.Purchase.UI
 RUN dotnet publish "./Wex.Purchase.UI.csproj" -c Release -o /app/ui-publish /p:UseAppHost=false
 
+# Final runtime stage
 FROM mcr.microsoft.com/dotnet/aspnet:10.0
 WORKDIR /app
 
@@ -62,10 +63,10 @@ ENV DOTNET_ROOT=/usr/share/dotnet
 ENV PATH="$PATH:/usr/share/dotnet"
 
 EXPOSE 8080
+
 # Copy API published files
-COPY --from=publish-with-ui /app/publish .
-# Copy UI published files to wwwroot for static file serving (if using Blazor Server)
-# Uncomment the next line if UI should be served as static content from API
-# COPY --from=publish-with-ui /app/ui-publish/wwwroot ./wwwroot/ui
+COPY --from=publish-api /app/publish .
+# Copy UI published files to wwwroot for static file serving if needed
+# COPY --from=publish-ui /app/ui-publish/wwwroot ./wwwroot/ui
 
 ENTRYPOINT ["dotnet", "Wex.Purchase.API.dll"]
