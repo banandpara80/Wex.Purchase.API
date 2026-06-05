@@ -17,6 +17,7 @@ using Wex.Purchase.Repository.Exceptions;
 using Wex.Purchase.Common.CircuitBreaker;
 using Wex.Purchase.Service.Exceptions;
 using Wex.Purchase.Manager.Exceptions;
+using Wex.Purchase.Common.RateLimiter;
 
 namespace Microsoft.Extensions.Hosting;
 
@@ -157,6 +158,7 @@ public static class Extensions
         services.AddScoped<PurchaseManager>();
         services.AddScoped<PurchaseRepository>();
         services.AddSingleton<NoopCircuitBreaker>();
+        services.AddSingleton<IRateLimiter, RateLimiter>();
 
         // Register Treasury Exchange Rate API client and conversion service
         services.AddHttpClient<ITreasuryExchangeRateClient, TreasuryExchangeRateClient>();

@@ -3,9 +3,7 @@ using Wex.Purchase.BusinessModels;
 using Wex.Purchase.API.Models;
 using Wex.Purchase.Service;
 using ILogger = Serilog.ILogger;
-using System;
-using System.Collections.Generic;
-using System.Threading;
+using Wex.Purchase.Common.RateLimiter;
 
 namespace Wex.Purchase.API.Controllers;
 
@@ -25,63 +23,19 @@ public class PurchaseController : ControllerBase
 {
     private readonly ILogger _logger;
     private readonly IPurchaseService _purchaseService;
-
-    // Controller-level rate limiting (sliding window)
-    private static readonly object _rateLimitLock = new();
-    private static readonly Queue<DateTime> _requestTimestamps = new();
-    private const int _maxRequestsPerWindow = 60; // requests per minute
-    private static readonly TimeSpan _rateLimitWindow = TimeSpan.FromMinutes(1);
+    private readonly IRateLimiter _rateLimiter;
+ 
 
     /// <summary>
     /// Initializes a new instance of the PurchaseController class.
     /// </summary>
     /// <param name="logger">Logger instance for logging controller operations.</param>
     /// <param name="purchaseService">Service instance for managing purchase operations.</param>
-    public PurchaseController(ILogger logger, IPurchaseService purchaseService)
+    public PurchaseController(ILogger logger, IPurchaseService purchaseService, IRateLimiter rateLimiter)
     {
         _logger = logger;
-        this._purchaseService = purchaseService;
-    }
-
-    private async Task EnsureRateLimitAsync(CancellationToken ct)
-    {
-        DateTime now = DateTime.UtcNow;
-        while (true)
-        {
-            TimeSpan wait = TimeSpan.Zero;
-            lock (_rateLimitLock)
-            {
-                while (_requestTimestamps.Count > 0 && (now - _requestTimestamps.Peek()) >= _rateLimitWindow)
-                {
-                    _requestTimestamps.Dequeue();
-                }
-
-                if (_requestTimestamps.Count < _maxRequestsPerWindow)
-                {
-                    _requestTimestamps.Enqueue(now);
-                    return;
-                }
-
-                var oldest = _requestTimestamps.Peek();
-                wait = _rateLimitWindow - (now - oldest);
-                if (wait < TimeSpan.Zero) wait = TimeSpan.Zero;
-            }
-
-            if (wait > TimeSpan.Zero)
-            {
-                _logger.Information("Rate limit reached. Waiting {Delay} before retrying.", wait);
-                try
-                {
-                    await Task.Delay(wait, ct);
-                }
-                catch (OperationCanceledException)
-                {
-                    throw;
-                }
-            }
-
-            now = DateTime.UtcNow;
-        }
+        _purchaseService = purchaseService;
+        _rateLimiter = rateLimiter;
     }
 
     /// <summary>
@@ -94,7 +48,7 @@ public class PurchaseController : ControllerBase
     {
         _logger.Information("Getting purchases");
 
-        await EnsureRateLimitAsync(HttpContext?.RequestAborted ?? CancellationToken.None);
+        await _rateLimiter.EnsureRateLimitAsync(HttpContext?.RequestAborted ?? CancellationToken.None);
 
         PurchaseDTO purchaseDTO = await _purchaseService.GetPurchaseOrderById(id);
 
@@ -112,7 +66,7 @@ public class PurchaseController : ControllerBase
     {
         _logger.Information("Adding purchase");
         
-        await EnsureRateLimitAsync(HttpContext?.RequestAborted ?? CancellationToken.None);
+        await _rateLimiter.EnsureRateLimitAsync(HttpContext?.RequestAborted ?? CancellationToken.None);
         
         if (purchaseDTO == null)
             return BadRequest();
@@ -137,6 +91,8 @@ public class PurchaseController : ControllerBase
     public async Task<ActionResult<IEnumerable<PurchaseWithExchangeRateDTO>>> GetPurchaseTransactionsWithConversions([FromBody] PurchaseRequestDTO purchaseRequestDTO)
     {
         _logger.Information("Getting purchase transactions with exchange rate conversions");
+
+        await _rateLimiter.EnsureRateLimitAsync(HttpContext?.RequestAborted ?? CancellationToken.None);
 
         var convertedTransactions = await _purchaseService.GetPurchaseTransactionsWithConversions(purchaseRequestDTO);
         return new ActionResult<IEnumerable<PurchaseWithExchangeRateDTO>>(convertedTransactions);

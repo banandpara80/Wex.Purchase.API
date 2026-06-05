@@ -8,6 +8,7 @@ using Serilog;
 using Serilog.Core;
 using Wex.Purchase.Common.Exceptions;
 using System.Collections.Generic;
+using Wex.Purchase.Common.RateLimiter;
 
 namespace Wex.Purchase.Unit.Tests.Controllers;
 
@@ -18,10 +19,12 @@ namespace Wex.Purchase.Unit.Tests.Controllers;
 public class PurchaseControllerTests
 {
     private readonly Mock<IPurchaseService> _purchaseServiceMock;
+    private readonly Mock<IRateLimiter> _rateLimiterMock;
 
     public PurchaseControllerTests()
     {
         _purchaseServiceMock = new Mock<IPurchaseService>();
+        _rateLimiterMock = new Mock<IRateLimiter>();
     }
 
     /// <summary>
@@ -35,7 +38,7 @@ public class PurchaseControllerTests
         var input = new PurchaseDTO { Id = Guid.NewGuid(), Description = "Test", PurchaseAmount = 1.0m, TransactionDate = DateTime.Now };
         _purchaseServiceMock.Setup(s => s.AddPurchase(It.IsAny<PurchaseDTO>())).ReturnsAsync(input);
 
-        var controller = new PurchaseController(Logger.None, _purchaseServiceMock.Object);
+        var controller = new PurchaseController(Logger.None, _purchaseServiceMock.Object, _rateLimiterMock.Object);
 
         // Act
         var result = await controller.AddPurchase(input);
@@ -56,7 +59,7 @@ public class PurchaseControllerTests
         // Arrange
         _purchaseServiceMock.Setup(s => s.AddPurchase(It.IsAny<PurchaseDTO>())).ThrowsAsync(new PurchaseValidationException("validation failed", new List<string>{"err"}));
 
-        var controller = new PurchaseController(Logger.None, _purchaseServiceMock.Object);
+        var controller = new PurchaseController(Logger.None, _purchaseServiceMock.Object, _rateLimiterMock.Object);
 
         // Act & Assert
         await Assert.ThrowsAsync<PurchaseValidationException>(async () => await controller.AddPurchase(new PurchaseDTO { Description = "Test" }));
