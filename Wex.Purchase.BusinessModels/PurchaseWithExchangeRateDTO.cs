@@ -29,7 +29,7 @@ public class PurchaseWithExchangeRateDTO
     /// Gets or sets the date the exchange rate was effective (format: yyyy-MM-dd).
     /// Null when exchange rate is not available.
     /// </summary>
-    public DateTime? ExchangeRateEffectiveDate { get; set; }
+    public DateOnly ExchangeRateEffectiveDate { get; set; }
 
     /// <summary>
     /// Gets or sets a note providing additional information about the conversion.

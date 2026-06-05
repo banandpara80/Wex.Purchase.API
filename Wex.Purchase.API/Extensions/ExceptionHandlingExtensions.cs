@@ -39,7 +39,6 @@ namespace Wex.Purchase.API.Extensions
         {
             Log.Information("Configuring exception handling services");
             services.AddExceptionHandler<GlobalExceptionHandler>();
-            services.AddProblemDetails();
             return services;
         }
     }
@@ -76,7 +75,7 @@ namespace Wex.Purchase.API.Extensions
                     response.Status = StatusCodes.Status400BadRequest;
                     response.Title = "Validation Failed";
                     response.Detail = validationEx.Message;
-                    response.Extensions = new Dictionary<string, object> { { "errors", validationEx.Errors } };
+                    response.Errors = validationEx.Errors;
                     Log.Warning("Handled PurchaseValidationException with errors: {@Errors}", validationEx.Errors);
                 }
                 else if (exception is PurchaseDatabaseException dbEx)

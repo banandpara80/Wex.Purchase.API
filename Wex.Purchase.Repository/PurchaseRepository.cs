@@ -1,4 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using Wex.Purchase.Common.Exceptions;
 using Wex.Purchase.Repository.Entity;
 using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
 
@@ -34,9 +35,12 @@ namespace Wex.Purchase.Repository
             {
                 await _db.SaveChangesAsync(cancellationToken);
             }
-            catch (Exception ex)
+            catch (DbUpdateException ex)
             {
-                throw;
+                if(ex.InnerException.Message.Contains("duplicate key value"))
+                {
+                    throw new DuplicatePurchaseException($"A purchase with the ID {purchase.Id} already exists.", ex);
+                }
             }
 
             await GetByIdAsync(purchase.Id, cancellationToken);

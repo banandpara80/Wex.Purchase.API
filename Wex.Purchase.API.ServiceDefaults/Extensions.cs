@@ -156,6 +156,7 @@ public static class Extensions
         services.AddScoped<PurchaseService>();
         services.AddScoped<PurchaseManager>();
         services.AddScoped<PurchaseRepository>();
+        services.AddSingleton<NoopCircuitBreaker>();
 
         // Register Treasury Exchange Rate API client and conversion service
         services.AddHttpClient<ITreasuryExchangeRateClient, TreasuryExchangeRateClient>();
@@ -191,10 +192,8 @@ public static class Extensions
         {
             var real = sp.GetRequiredService<PurchaseManager>();
             var handler = sp.GetRequiredService<IManagerExceptionHandler>();
-            var cb = sp.GetRequiredService<ICircuitBreaker>();
-            // Wrap order: concrete -> exception handler decorator -> circuit breaker decorator
-            var withHandler = new PurchaseManagerDecorator(real, handler);
-            return new PurchaseManagerCircuitBreakerDecorator(withHandler, cb);
+
+            return new PurchaseManagerDecorator(real, handler);       
         });
          
         return services;

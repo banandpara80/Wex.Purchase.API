@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 
 namespace Wex.Purchase.BusinessModels;
 
@@ -11,6 +12,7 @@ public class PurchaseDTO : IValidatableObject
     /// <summary>
     /// Gets or sets the unique identifier of the purchase.
     /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public Guid Id { get; set; }
 
     /// <summary>
@@ -25,31 +27,35 @@ public class PurchaseDTO : IValidatableObject
     /// Gets or sets the transaction date of the purchase.
     /// </summary>
     [Required(ErrorMessage = "TransactionDate is required")]
-    [DataType(DataType.DateTime)]
     public DateTime TransactionDate { get; set; }
 
     /// <summary>
     /// Gets or sets the purchase amount.
     /// </summary>
-    [Range(0.01, double.MaxValue, ErrorMessage = "Purchase amount must be greater than zero.")]
+    [Required(ErrorMessage = "Please provide the purchase amount")]
+    [Range(0.01, 999999999.99, ErrorMessage = "Purchase amount must be greater than zero.")]
     public decimal PurchaseAmount { get; set; }
 
-public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
-{
-    var results = new List<ValidationResult>();
+    /// <summary>
+    /// Gets or sets only the date component of transaction date of the purchase.
+    /// </summary>
+    [JsonIgnore]
+    public DateOnly ExchangeRateDate { get; set; }
 
-    // TransactionDate must be provided (not default)
-    if (TransactionDate == default)
+    public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
     {
-        results.Add(new ValidationResult("TransactionDate is required", new[] { nameof(TransactionDate) }));
-    }
+        var results = new List<ValidationResult>();
 
-    // PurchaseAmount must be positive
-    if (PurchaseAmount <= 0)
-    {
-        results.Add(new ValidationResult("PurchaseAmount must be greater than zero", new[] { nameof(PurchaseAmount) }));
-    }
+        if (TransactionDate == default)
+        {
+            results.Add(new ValidationResult("TransactionDate is required", new[] { nameof(TransactionDate) }));
+        }
 
-    return results;
-}
+        if (!DateTime.TryParse(TransactionDate.ToString(), out _))
+        {
+            results.Add(new ValidationResult("Please provide a valid transaction date", new[] { nameof(TransactionDate) }));
+        }
+       
+        return results;
+ }
 }

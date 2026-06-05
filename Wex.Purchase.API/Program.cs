@@ -22,16 +22,15 @@ public class Program
         builder.AddServiceDefaults();
 
         // Add services to the container with JSON options for DateOnly
-        builder.Services.AddControllers()
-            .AddJsonOptions(opts =>
-            {
-                opts.JsonSerializerOptions.Converters.Add(new Wex.Purchase.API.Json.DateOnlyJsonConverter());
-            })
-            .AddNewtonsoftJson(opts =>
-            {
-                // Register a simple converter for DateOnly when using Newtonsoft
-                opts.SerializerSettings.Converters.Add(new Newtonsoft.Json.Converters.IsoDateTimeConverter());
-            });
+        // Register ModelValidationFilter in DI and add it as a filter by service so it executes early and produces ErrorResponse for invalid models
+        //builder.Services.AddScoped<Wex.Purchase.API.Filters.ModelValidationFilter>();
+
+        //builder.Services.Configure<ApiBehaviorOptions>(options =>
+        //{
+        //    options.SuppressModelStateInvalidFilter = true;
+        //});
+
+        builder.Services.AddControllers();
 
         // Configure custom response for invalid model state (validation errors)
         builder.Services.Configure<ApiBehaviorOptions>(options =>
@@ -48,7 +47,7 @@ public class Program
                     Status = StatusCodes.Status400BadRequest,
                     Title = "Validation Failed",
                     Detail = "One or more validation errors occurred.",
-                    Extensions = new Dictionary<string, object> { { "errors", errors } }
+                    Errors =  errors
                 };
 
                 return new BadRequestObjectResult(errorResponse);
@@ -69,6 +68,10 @@ public class Program
         );
 
         var app = builder.Build();
+
+        // Register global exception handling middleware so all exceptions (including from controllers/services)
+        // are captured and normalized into ErrorResponse objects.
+        app.UseGlobalExceptionHandling();
 
         app.MapDefaultEndpoints();
 

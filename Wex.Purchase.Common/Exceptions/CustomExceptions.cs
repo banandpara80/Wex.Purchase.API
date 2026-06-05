@@ -79,3 +79,16 @@ public class ExchangeRateNotFoundException : PurchaseApplicationException
         Log.Warning("Exchange rate for currency  {@currency} was not found  on {@} or in the past 6 months ", currency, transactionDate);
     }
 }
+
+
+/// <summary>
+/// Exception thrown when database operations fail.
+/// </summary>
+public class DuplicatePurchaseException : PurchaseApplicationException
+{
+    public DuplicatePurchaseException(string message, Exception innerException)
+        : base(message, innerException)
+    {
+        Log.Error(innerException, "Database operation failed: {@Message}", message);
+    }
+}

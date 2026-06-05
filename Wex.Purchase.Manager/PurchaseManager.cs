@@ -25,11 +25,12 @@ namespace Wex.Purchase.Manager
         /// <param name="logger">Serilog logger instance.</param>
         /// <param name="purchaseRepository">The repository for data access operations.</param>
         /// <param name="exchangeRateConversionService">Service for exchange rate conversions.</param>
-        public PurchaseManager(ILogger logger, IPurchaseRepository purchaseRepository, IExchangeRateConversionService exchangeRateConversionService = null) {
-            _logger = logger;
-            this._purchaseRepository = purchaseRepository;
-            this._exchangeRateConversionService = exchangeRateConversionService;
-        }
+        public PurchaseManager(ILogger logger, IPurchaseRepository purchaseRepository, 
+            IExchangeRateConversionService exchangeRateConversionService = null) {
+                _logger = logger;
+                this._purchaseRepository = purchaseRepository;
+                this._exchangeRateConversionService = exchangeRateConversionService;
+            }
 
         /// <summary>
         /// Adds a new purchase to the system.
@@ -47,15 +48,10 @@ namespace Wex.Purchase.Manager
 
             PurchaseBO purchaseBO = PurchaseMapper.MapToPurchaseBO(purchaseDTO);
 
-            try
-            {
-                await _purchaseRepository.AddAsync(purchaseBO, cancellationToken);
-            }
-            catch (Exception ex)
-            {
-                throw new PurchaseDatabaseException("Failed to save purchase", ex);
-            }
-
+          
+            purchaseBO.ExchangeRateDate = DateOnly.FromDateTime(purchaseBO.TransactionDate);
+            await _purchaseRepository.AddAsync(purchaseBO, cancellationToken);
+            
             purchaseDTO = purchaseBO.MapToPurchaseDTO();
 
             return purchaseDTO;
@@ -84,13 +80,14 @@ namespace Wex.Purchase.Manager
             {
                 var idStrings = purchaseRequestDTO.Ids.Split(',');
                 purchaseIds = idStrings
+                    .Where(x => !String.IsNullOrEmpty(x))
                     .Select(id => Guid.Parse(id.Trim()))
                     .ToArray();
             }
             catch (Exception ex)
             {
                 _logger.Error(ex, "Error parsing purchase IDs: {Ids}", purchaseRequestDTO.Ids);
-                throw new InvalidOperationException($"Invalid purchase ID format. Expected comma-separated GUIDs.", ex);
+                throw new ArgumentException($"Invalid purchase ID format. Expected comma-separated GUIDs.", ex);
             }
 
             IList<PurchaseBO> puchaseTransactions;
@@ -118,11 +115,6 @@ namespace Wex.Purchase.Manager
         /// <returns>A collection of purchases with exchange rate conversion information.</returns>
         public async Task<IList<PurchaseWithExchangeRateDTO>> GetPurchaseTransactionsWithConversions(PurchaseRequestDTO purchaseRequestDTO, CancellationToken cancellationToken = default)
         {
-            if (_exchangeRateConversionService == null)
-            {
-                throw new InvalidOperationException("Exchange rate conversion service is not configured. Please register IExchangeRateConversionService in DI.");
-            }
-
             // First, retrieve the base purchases
             IList<PurchaseDTO> purchases = await GetPurchaseTransactions(purchaseRequestDTO, cancellationToken);
 
@@ -133,23 +125,17 @@ namespace Wex.Purchase.Manager
             }
 
             // Convert to requested currencies
-            try
-            {
-                IList<PurchaseWithExchangeRateDTO> convertedPurchases = await _exchangeRateConversionService.ConvertPurchasesAsync(
-                    purchases,
-                    purchaseRequestDTO.Currency,
-                    cancellationToken);
+           
+            IList<PurchaseWithExchangeRateDTO> convertedPurchases = await _exchangeRateConversionService.ConvertPurchasesAsync(
+                purchases,
+                purchaseRequestDTO.Currency,
+                cancellationToken);
 
-                _logger.Information("Successfully converted {PurchaseCount} purchases to {CurrencyCount} currencies",
-                    purchases.Count, purchaseRequestDTO.Currency.Length);
+            _logger.Information("Successfully converted {PurchaseCount} purchases to {CurrencyCount} currencies",
+                purchases.Count, purchaseRequestDTO.Currency.Length);
 
-                return convertedPurchases;
-            }
-            catch (Exception ex)
-            {
-                _logger.Error(ex, "Failed to convert purchase transactions");
-                throw;
-            }
+            return convertedPurchases;
+           
         }
     }
 }

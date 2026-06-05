@@ -9,7 +9,7 @@ namespace Wex.Purchase.BusinessModels
     /// Data Transfer Object for purchase query requests.
     /// Contains filtering criteria for retrieving specific purchase transactions.
     /// </summary>
-    public class PurchaseRequestDTO
+    public class PurchaseRequestDTO : IValidatableObject
     {
 
         /// <summary>
@@ -23,5 +23,18 @@ namespace Wex.Purchase.BusinessModels
         /// </summary>
         [Required(ErrorMessage = "Please provide the target currency")]
         public required string Currency { get; set; }
+
+        public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
+        {
+           string[] idArray = Ids.Split(',', StringSplitOptions.RemoveEmptyEntries);
+
+            foreach (var id in idArray)
+            {
+                if (!Guid.TryParse(id.Trim(), out _))
+                {
+                    yield return new ValidationResult($"Invalid purchase ID: {id}. Each ID must be a valid GUID.", new[] { nameof(Ids) });
+                }
+            }
+        }
     }
 }

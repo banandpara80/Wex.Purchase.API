@@ -29,6 +29,11 @@ namespace Wex.Purchase.Repository.Entity
         public DateTime TransactionDate { get; set; }
 
         /// <summary>
+        /// Gets or sets the transaction date of the purchase.
+        /// </summary>
+        public DateOnly ExchangeRateDate { get; set; }
+
+        /// <summary>
         /// Gets or sets the purchase amount.
         /// </summary>
         public decimal PurchaseAmount { get; set; }

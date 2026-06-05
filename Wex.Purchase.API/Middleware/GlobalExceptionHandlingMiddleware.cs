@@ -65,8 +65,15 @@ public class GlobalExceptionHandlingMiddleware
                 response.Status = StatusCodes.Status400BadRequest;
                 response.Title = "Validation Failed";
                 response.Detail = validationEx.Message;
-                response.Extensions = new Dictionary<string, object> { { "errors", validationEx.Errors } };
+                response.Errors = validationEx.Errors;
                 Log.Warning("Validation exception. Errors: {@Errors}", validationEx.Errors);
+                break;
+            case DuplicatePurchaseException validationEx:
+                context.Response.StatusCode = StatusCodes.Status400BadRequest;
+                response.Status = StatusCodes.Status400BadRequest;
+                response.Title = "Duplicate Purchase";
+                response.Errors = new List<string>() { validationEx.Message };
+                Log.Warning("Duplicate Purchase: {@Message}", validationEx.Message);
                 break;
 
             case PurchaseDatabaseException dbEx:

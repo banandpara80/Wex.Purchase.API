@@ -1,10 +1,11 @@
 using Moq;
+using Serilog.Core;
 using Wex.Purchase.BusinessModels;
+using Wex.Purchase.Common.Exceptions;
 using Wex.Purchase.Manager.ExchangeRate;
 using Wex.Purchase.Manager.ExchangeRateConversion;
+using Wex.Purchase.Repository.Entity;
 using Xunit;
-using Serilog.Core;
-using Wex.Purchase.Common.Exceptions;
 
 namespace Wex.Purchase.Unit.Tests.ExchangeRate;
 
@@ -39,9 +40,15 @@ public class TreasuryExchangeRateTests
             TransactionDate = DateTime.Now
         };
 
-        decimal exchangeRate = 1.10m; // EUR to USD: 1 USD = 1.10 EUR
+        var exchangeRateRecord = new ExchangeRateRecord
+        {
+            CurrencyCode = "EUR",
+            RecordDate = purchase.ExchangeRateDate,
+            ExchangeRate = 1.10m
+        };
+        decimal exchangeRate = exchangeRateRecord.ExchangeRate; // EUR to USD: 1 USD = 1.10 EUR
         _mockExchangeRateClient.Setup(c => c.GetExchangeRateWithFallbackAsync(It.IsAny<string>(), It.IsAny<DateOnly>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(exchangeRate);
+            .ReturnsAsync(exchangeRateRecord);
 
         // Act
         var result = await _conversionService.ConvertPurchaseAsync(purchase, "EUR");
@@ -104,19 +111,16 @@ public class TreasuryExchangeRateTests
             }
         };
 
-        string currency = "EUR";
+        var exchangeRateRecord = new ExchangeRateRecord
+        {
+            CurrencyCode = "EUR",
+            RecordDate = purchases[0].ExchangeRateDate,
+            ExchangeRate = 1.10m
+        };
+        string currency = exchangeRateRecord.CurrencyCode;
 
         _mockExchangeRateClient.Setup(c => c.GetExchangeRateWithFallbackAsync(It.IsAny<string>(), It.IsAny<DateOnly>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync((string code, DateOnly date, CancellationToken ct) =>
-            {
-                return code switch
-                {
-                    "EUR" => 1.10m,
-                    "GBP" => 1.25m,
-                    _ => throw new ExchangeRateNotFoundException(currency, DateOnly.FromDateTime(purchases[0].TransactionDate))
-                };
-            });
-
+            .ReturnsAsync(exchangeRateRecord);
         // Act
         var results = await _conversionService.ConvertPurchasesAsync(purchases, currency);
 
@@ -145,10 +149,16 @@ public class TreasuryExchangeRateTests
             TransactionDate = DateTime.Now
         };
 
+        var exchangeRateRecord = new ExchangeRateRecord
+        {
+            CurrencyCode = "EUR",
+            RecordDate = DateOnly.FromDateTime(purchase.TransactionDate),
+            ExchangeRate = 1.05m
+        };
         // EUR to USD: 100 * 1.05 = 105.00
-        decimal exchangeRate = 1.05m;
+        decimal exchangeRate = exchangeRateRecord.ExchangeRate;
         _mockExchangeRateClient.Setup(c => c.GetExchangeRateWithFallbackAsync(It.IsAny<string>(), It.IsAny<DateOnly>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(exchangeRate);
+            .ReturnsAsync(exchangeRateRecord);
 
         // Act
         var result = await _conversionService.ConvertPurchaseAsync(purchase, "EUR");

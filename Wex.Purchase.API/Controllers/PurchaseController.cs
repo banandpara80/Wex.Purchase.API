@@ -94,7 +94,7 @@ public class PurchaseController : ControllerBase
     {
         _logger.Information("Getting purchases");
 
-        await EnsureRateLimitAsync(HttpContext.RequestAborted);
+        await EnsureRateLimitAsync(HttpContext?.RequestAborted ?? CancellationToken.None);
 
         PurchaseDTO purchaseDTO = await _purchaseService.GetPurchaseOrderById(id);
 
@@ -111,7 +111,7 @@ public class PurchaseController : ControllerBase
     public async Task<ActionResult<PurchaseDTO>> AddPurchase([FromBody] PurchaseDTO purchaseDTO)
     {
         _logger.Information("Adding purchase");
-        await EnsureRateLimitAsync(HttpContext.RequestAborted);
+        await EnsureRateLimitAsync(HttpContext?.RequestAborted ?? CancellationToken.None);
         if (purchaseDTO == null)
             return BadRequest();
 

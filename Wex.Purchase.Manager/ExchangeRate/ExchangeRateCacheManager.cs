@@ -6,6 +6,7 @@ using System.Linq;
 using System.Net.Http.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using Wex.Purchase.Common.CircuitBreaker;
 
 namespace Wex.Purchase.Manager.ExchangeRate;
 
@@ -18,8 +19,9 @@ public class ExchangeRateCacheManager
 {
     private readonly HttpClient _httpClient;
     private readonly ILogger _logger;
+    private readonly ICircuitBreaker _circuitBreaker;
 
-    // Cache structure: Key = "CURRENCY_YYYY-MM-DD" (e.g., "EUR_2024-06-15"), 
+    // Cache structure: Key = "CURRENCY_YYYY-MM-DD" (e.g., "Rupee_2024-06-15"), 
     // Value = ExchangeRateCacheEntry containing rates from 6 months before that date
     private static readonly ConcurrentDictionary<string, ExchangeRateCacheEntry> ExchangeRateCache = new();
 
@@ -31,10 +33,11 @@ public class ExchangeRateCacheManager
     // Cache expiration time: 6 hours
     private static readonly TimeSpan CacheExpiration = TimeSpan.FromHours(6);
 
-    public ExchangeRateCacheManager(HttpClient httpClient, ILogger logger)
+    public ExchangeRateCacheManager(HttpClient httpClient, ILogger logger, ICircuitBreaker circuitBreaker = null)
     {
         _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _circuitBreaker = circuitBreaker ?? new NoopCircuitBreaker();
     }
 
     /// <summary>
@@ -42,20 +45,20 @@ public class ExchangeRateCacheManager
     /// Loads rates from the 6 months preceding (and including) the transaction date.
     /// Cache key: Currency + TransactionDate.
     /// </summary>
-    /// <param name="currencyCode">ISO 4217 currency code (e.g., EUR, GBP, JPY).</param>
+    /// <param name="currencyCode">Currency code (e.g., Peso, Rupee).</param>
     /// <param name="transactionDate">The transaction/purchase date - defines the 6-month window.</param>
     /// <param name="cancellationToken">Cancellation token for the async operation.</param>
     /// <returns>List of exchange rates for the 6 months before and including the transaction date.</returns>
     public async Task<List<ExchangeRateRecord>> GetExchangeRatesForDateAsync(
         string currencyCode, 
-        DateOnly transactionDate, 
+        DateOnly exchangeRateDate, 
         CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(currencyCode))
             throw new ArgumentException("Currency code cannot be null or empty", nameof(currencyCode));
 
         // Cache key includes currency AND transaction date for date-specific 6-month windows
-        string cacheKey = $"{currencyCode}_{transactionDate:yyyy-MM-dd}";
+        string cacheKey = $"{currencyCode}_{exchangeRateDate:yyyy-MM-dd}";
 
         // Check if cached and not expired
         if (ExchangeRateCache.TryGetValue(cacheKey, out var cachedEntry) && !cachedEntry.IsExpired())
@@ -65,7 +68,7 @@ public class ExchangeRateCacheManager
         }
 
         // Load from API for this specific date window
-        await EnsureCacheLoadedAsync(currencyCode, transactionDate, cacheKey, cancellationToken);
+        await EnsureCacheLoadedAsync(currencyCode, exchangeRateDate, cacheKey, cancellationToken);
 
         if (ExchangeRateCache.TryGetValue(cacheKey, out var entry))
         {
@@ -73,7 +76,7 @@ public class ExchangeRateCacheManager
         }
 
         throw new InvalidOperationException(
-            $"No exchange rates found for currency {currencyCode} in the 6 months before {transactionDate:yyyy-MM-dd}");
+            $"No exchange rates found for currency {currencyCode} in the 6 months before {exchangeRateDate:yyyy-MM-dd}");
     }
 
     /// <summary>
@@ -82,31 +85,35 @@ public class ExchangeRateCacheManager
     /// </summary>
     private async Task EnsureCacheLoadedAsync(
         string currencyCode, 
-        DateOnly transactionDate, 
+        DateOnly exchangeRateDate, 
         string cacheKey,
         CancellationToken cancellationToken = default)
     {
-        _logger.Information("Loading exchange rates for {CurrencyCode} with date window ending {TransactionDate}", 
-            currencyCode, transactionDate);
+        _logger.Information("Loading exchange rates for {CurrencyCode} with date window ending {ExchangeRateDate}", 
+            currencyCode, exchangeRateDate);
 
         try
         {
-            // Calculate date range: 6 months before transaction date (inclusive)
-            DateOnly endDate = transactionDate;
-            DateOnly startDate = transactionDate; transactionDate.AddMonths(-6);
+            // Calculate date range: 6 months before exchangeRate Date (inclusive)
+            DateOnly endDate = exchangeRateDate;
+            DateOnly startDate = exchangeRateDate.AddMonths(-6);
 
             string startDateStr = startDate.ToString("yyyy-MM-dd");
             string endDateStr = endDate.ToString("yyyy-MM-dd");
 
             // Build API query for the 6-month period before the transaction date
-            string filter = $"filter=record_date:gte:{startDateStr},record_date:lte:{endDateStr},currency:eq:{currencyCode}";
+            string filter = $"filter=record_date:gte:{startDateStr},record_date:lte:{endDateStr},country_currency_desc:eq:{currencyCode}";
             string url = $"{TreasuryApiBaseUrl}{ExchangeRatesEndpoint}?{ExchangeRateFields}&{filter}&limit=10000";
 
-            using var response = await _httpClient.GetAsync(url, cancellationToken);
-            response.EnsureSuccessStatusCode();
-
-            var apiResponse = await response.Content.ReadFromJsonAsync<TreasuryExchangeRateResponse>(
-                cancellationToken: cancellationToken);
+            // Wrap HTTP call with circuit breaker - only this specific external API call should be protected
+            var apiResponse = await _circuitBreaker.ExecuteAsync(
+                async ct =>
+                {
+                    using var response = await _httpClient.GetAsync(url, ct);
+                    response.EnsureSuccessStatusCode();
+                    return await response.Content.ReadFromJsonAsync<TreasuryExchangeRateResponse>(cancellationToken: ct);
+                },
+                cancellationToken);
 
             if (apiResponse?.Data == null || apiResponse.Data.Length == 0)
             {
@@ -132,28 +139,28 @@ public class ExchangeRateCacheManager
             {
                 Rates = rates,
                 CachedAt = DateTime.UtcNow,
-                TransactionDate = transactionDate
+                ExchangeRateDate = exchangeRateDate
             };
 
             ExchangeRateCache[cacheKey] = cacheEntry;
 
             _logger.Information(
-                "Cached {RateCount} exchange rates for {CurrencyCode} with transaction date {TransactionDate}", 
-                rates.Count, currencyCode, transactionDate);
+                "Cached {RateCount} exchange rates for {CurrencyCode} with exchange rate date {ExchangeRateDate}", 
+                rates.Count, currencyCode, exchangeRateDate);
         }
         catch (HttpRequestException ex)
         {
-            _logger.Error(ex, 
-                "Failed to load exchange rates from Treasury API for {CurrencyCode} ending {TransactionDate}", 
-                currencyCode, transactionDate);
+            _logger.Error(ex,
+                "Failed to load exchange rates from Treasury API for {CurrencyCode} ending {ExchangeRateDate}", 
+                currencyCode, exchangeRateDate);
             throw new InvalidOperationException(
                 $"Failed to load exchange rates for {currencyCode}: {ex.Message}", ex);
         }
         catch (Exception ex)
         {
-            _logger.Error(ex, 
-                "Unexpected error loading exchange rates for {CurrencyCode} ending {TransactionDate}", 
-                currencyCode, transactionDate);
+            _logger.Error(ex,
+                "Unexpected error loading exchange rates for {CurrencyCode} ending {ExchangeRateDate}", 
+                currencyCode, exchangeRateDate);
             throw;
         }
     }
@@ -163,24 +170,24 @@ public class ExchangeRateCacheManager
     /// Rate must be less than or equal to the transaction date (rate date cannot be in the future).
     /// </summary>
     /// <param name="rates">List of exchange rates sorted by date (most recent first).</param>
-    /// <param name="transactionDate">The target date - rate date must be ≤ this date.</param>
+    /// <param name="exchangeRateDate">The target date - rate date must be ≤ this date.</param>
     /// <returns>The exchange rate for the exact date, or the most recent rate ≤ transaction date.
     /// Returns null if no valid rate found (all rates are after the transaction date).</returns>
     public static ExchangeRateRecord? FindExchangeRateForDateOrMostRecent(
         List<ExchangeRateRecord> rates, 
-        DateOnly transactionDate)
+        DateOnly exchangeRateDate)
     {
         if (rates == null || rates.Count == 0)
             return null;
 
         // Try to find exact date match first (compare date parts only)
-        var exactMatch = rates.FirstOrDefault(r => r.RecordDate == transactionDate);
+        var exactMatch = rates.FirstOrDefault(r => r.RecordDate == exchangeRateDate);
         if (exactMatch != null)
             return exactMatch;
 
         // Find most recent rate that is ≤ transaction date (rate cannot be in the future)
         // List is already sorted by date descending (most recent first)
-        var validRate = rates.FirstOrDefault(r => r.RecordDate <= transactionDate);
+        var validRate = rates.FirstOrDefault(r => r.RecordDate <= exchangeRateDate);
 
         return validRate;
     }
@@ -218,7 +225,7 @@ public class ExchangeRateCacheEntry
     /// <summary>
     /// The transaction date that defines the 6-month window (rates are for period before this date).
     /// </summary>
-    public DateOnly TransactionDate { get; set; }
+    public DateOnly ExchangeRateDate { get; set; }
 
     /// <summary>
     /// Timestamp when this entry was cached.

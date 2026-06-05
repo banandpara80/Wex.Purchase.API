@@ -53,9 +53,14 @@ namespace Wex.Purchase.Service
         /// <param name="id">Purchase Id</param>
         /// <param name="cancellationToken">Cancellation token for the async operation.</param>
         /// <returns>Purchase DTO matching the criteria.</returns>
-        public Task<PurchaseDTO> GetPurchaseOrderById(Guid id, CancellationToken cancellationToken = default)
+        public async Task<PurchaseDTO> GetPurchaseOrderById(Guid id, CancellationToken cancellationToken = default)
         {
-            throw new NotImplementedException();
+            if(id == Guid.Empty || id == default(Guid))
+            {
+                throw new PurchaseValidationException("Invalid purchase ID");
+            }
+
+            return await _purchaseManager.GetPurchaseOrderById(id, cancellationToken);
         }
 
         /// <summary>
@@ -79,19 +84,8 @@ namespace Wex.Purchase.Service
                 var errors = validationResults.Select(r => r.ErrorMessage).Where(m => !string.IsNullOrEmpty(m)).ToList();
                 throw new PurchaseValidationException("Purchase request validation failed", errors);
             }
-
-            
-             
-
-            try
-            {
-                return await _purchaseManager.GetPurchaseTransactionsWithConversions(purchaseRequestDTO, cancellationToken);
-            }
-            catch (Exception ex)
-            {
-                _logger.Error(ex, "Error retrieving purchase transactions with conversions");
-                throw;
-            }
+           
+            return await _purchaseManager.GetPurchaseTransactionsWithConversions(purchaseRequestDTO, cancellationToken);        
         }
     }
 }

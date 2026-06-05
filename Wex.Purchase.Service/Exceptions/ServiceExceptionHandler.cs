@@ -43,12 +43,7 @@ public class ServiceExceptionHandler : IServiceExceptionHandler
         {
             logger.Error(ex, "Invalid argument in service operation {@OperationName}: {@Message}", operationName, ex.Message);
             throw;
-        }
-        catch (ExchangeRateNotFoundException ex)
-        {
-            logger.Error(ex, "Invalid operation in service {@OperationName}: {@Message}", operationName, ex.Message);
-            throw;
-        }
+        }      
         catch (AggregateException ex)
         {
             throw;
@@ -56,7 +51,7 @@ public class ServiceExceptionHandler : IServiceExceptionHandler
         catch (Exception ex)
         {
             logger.Error(ex, "Unexpected error in service operation {@OperationName}: {@Message}", operationName, ex.Message);
-            throw new Exception($"Service operation '{operationName}' failed: {ex.Message}", ex);
+            throw;
         }
     }
 

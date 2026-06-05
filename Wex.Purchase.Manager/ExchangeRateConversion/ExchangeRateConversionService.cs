@@ -58,33 +58,33 @@ public class ExchangeRateConversionService : IExchangeRateConversionService
         if (string.IsNullOrWhiteSpace(targetCurrencyCode))
             throw new ArgumentException("Target currency code cannot be null or empty", nameof(targetCurrencyCode));
 
-        _logger.Information("Converting purchase {PurchaseId} to {CurrencyCode} for date {TransactionDate}", purchase.Id, targetCurrencyCode, purchase.TransactionDate);
+        _logger.Information("Converting purchase {PurchaseId} to {CurrencyCode} for date {ExchangeRateDate}", purchase.Id, targetCurrencyCode, purchase.ExchangeRateDate);
 
         try
         {
-            DateOnly purhaseDate = DateOnly.FromDateTime(purchase.TransactionDate);
+            DateOnly transactionDate = DateOnly.FromDateTime(purchase.TransactionDate);
             // Use the new method with fallback to most recent rate in the past 6 months
-            var exchangeRate = await _exchangeRateClient.GetExchangeRateWithFallbackAsync(targetCurrencyCode, purhaseDate, cancellationToken);
+            ExchangeRateRecord exchangeRateRecord = await _exchangeRateClient.GetExchangeRateWithFallbackAsync(targetCurrencyCode, transactionDate, cancellationToken);
 
             // Convert: ConvertedAmount = PurchaseAmount * ExchangeRate
-            decimal convertedAmount = purchase.PurchaseAmount * exchangeRate;
+            decimal convertedAmount = purchase.PurchaseAmount * exchangeRateRecord.ExchangeRate;
 
             var result = new PurchaseWithExchangeRateDTO
             {
                 Purchase = purchase,
-                ExchangeRate = exchangeRate,
+                ExchangeRate = exchangeRateRecord.ExchangeRate,
                 ConvertedAmount = Math.Round(convertedAmount, 2, MidpointRounding.AwayFromZero),
-                ExchangeRateEffectiveDate = purchase.TransactionDate
+                ExchangeRateEffectiveDate = exchangeRateRecord.RecordDate
             };
 
             _logger.Information("Purchase {PurchaseId} converted: {OriginalAmount} USD → {ConvertedAmount} {CurrencyCode} (rate: {ExchangeRate})",
-                purchase.Id, purchase.PurchaseAmount, result.ConvertedAmount, targetCurrencyCode, exchangeRate);
+                purchase.Id, purchase.PurchaseAmount, result.ConvertedAmount, targetCurrencyCode, exchangeRateRecord.ExchangeRate);
 
             return result;
         }
         catch (ExchangeRateNotFoundException ex)
         {
-            _logger.Warning(ex, "Exchange rate not available for purchase {PurchaseId} to {CurrencyCode} on {TransactionDate}", purchase.Id, targetCurrencyCode, purchase.TransactionDate);
+            _logger.Warning(ex, "Exchange rate not available for purchase {PurchaseId} to {CurrencyCode} on {ExchangeRateDate}", purchase.Id, targetCurrencyCode, purchase.ExchangeRateDate);
 
             // Return result with note indicating exchange rate is not available
             return new PurchaseWithExchangeRateDTO
@@ -92,8 +92,8 @@ public class ExchangeRateConversionService : IExchangeRateConversionService
                 Purchase = purchase,
                 ExchangeRate = null,
                 ConvertedAmount = null,
-                ExchangeRateEffectiveDate = null,
-                Note = $"Exchange rate not available for currency '{targetCurrencyCode}' on {purchase.TransactionDate:yyyy-MM-dd} or in the past 6 months."
+                ExchangeRateEffectiveDate = DateOnly.FromDateTime(DateTime.Now),
+                Note = $"Exchange rate not available for currency '{targetCurrencyCode}' on {purchase.ExchangeRateDate:yyyy-MM-dd} or in the past 6 months."
             };
         }
         catch (Exception ex)

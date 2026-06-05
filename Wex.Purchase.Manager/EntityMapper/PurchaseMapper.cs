@@ -25,7 +25,8 @@ public static class PurchaseMapper
             Id = purchase.Id,
             Description = purchase.Description,
             PurchaseAmount = purchase.PurchaseAmount,
-            TransactionDate = purchase.TransactionDate
+            TransactionDate = purchase.TransactionDate,
+            ExchangeRateDate = purchase.ExchangeRateDate            
         };
     }
 
@@ -59,7 +60,8 @@ public static class PurchaseMapper
             Id = dto.Id,
             Description = dto.Description,
             PurchaseAmount = dto.PurchaseAmount,
-            TransactionDate = dto.TransactionDate
+            TransactionDate = dto.TransactionDate,
+            ExchangeRateDate = dto.ExchangeRateDate
         };
     }
 }

@@ -39,15 +39,10 @@ namespace Wex.Purchase.Manager.Exceptions
                 logger.Error(ex, "Invalid argument in manager operation {@OperationName}: {@Message}", operationName, ex.Message);
                 throw;
             }
-            catch (ExchangeRateNotFoundException ex)
-            {
-                logger.Error(ex, "Invalid operation in manager {@OperationName}: {@Message}", operationName, ex.Message);
-                throw;
-            }
             catch (Exception ex)
             {
                 logger.Error(ex, "Unexpected error in manager operation {@OperationName}: {@Message}", operationName, ex.Message);
-                throw new Exception($"manager operation '{operationName}' failed: {ex.Message}", ex);
+                throw;
             }
         }
 

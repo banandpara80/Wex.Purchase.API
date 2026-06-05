@@ -24,5 +24,5 @@ public class ErrorResponse
     /// <summary>
     /// Gets or sets additional error details specific to validation errors.
     /// </summary>
-    public Dictionary<string, object>? Extensions { get; set; }
+    public IList<string> Errors { get; set; }
 }

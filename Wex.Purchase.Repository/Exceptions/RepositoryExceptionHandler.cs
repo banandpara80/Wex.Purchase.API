@@ -1,4 +1,6 @@
 using Serilog;
+using System.Data.Common;
+using Wex.Purchase.Common.Exceptions;
 
 namespace Wex.Purchase.Repository.Exceptions;
 
@@ -76,15 +78,15 @@ public class RepositoryExceptionHandler : IRepositoryrExceptionHandler
             Log.Error(ex, "Null argument in repository operation {@OperationName}, Parameter: {@ParamName}", operationName, ex.ParamName);
             throw new ArgumentNullException(ex.ParamName, $"Repository operation '{operationName}' received null argument: {ex.Message}");
         }
-        catch (System.Data.Common.DbException dbEx)
+        catch (DbException dbEx)
         {
             Log.Error(dbEx, "Database exception in repository operation {@OperationName}: {@Message}", operationName, dbEx.Message);
-            throw new InvalidOperationException($"Database error in repository operation '{operationName}': {dbEx.Message}", dbEx);
+            throw;
         }
         catch (Exception ex)
         {
             Log.Error(ex, "Unexpected error in repository operation {@OperationName}: {@Message}", operationName, ex.Message);
-            throw new InvalidOperationException($"Repository operation '{operationName}' failed unexpectedly: {ex.Message}", ex);
+            throw;
         }
     }
 }
