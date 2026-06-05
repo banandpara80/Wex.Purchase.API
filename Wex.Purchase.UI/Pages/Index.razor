@@ -136,7 +136,7 @@
         apiErrors.Clear();
 
         var client = HttpClientFactory.CreateClient();
-        client.BaseAddress = new Uri("http://localhost:5271/");
+        client.BaseAddress = new Uri("http://localhost:8081/");
 
         var dto = new PurchaseDTO
         {
@@ -162,7 +162,7 @@
         apiErrors.Clear();
 
         var client = HttpClientFactory.CreateClient();
-        client.BaseAddress = new Uri("http://localhost:5271/");
+        client.BaseAddress = new Uri("http://localhost:8081/");
 
         if (Guid.TryParse(queryId, out var id))
         {
@@ -207,7 +207,7 @@
         try
         {
             var client = HttpClientFactory.CreateClient();
-            client.BaseAddress = new Uri("http://localhost:5271/");
+            client.BaseAddress = new Uri("http://localhost:8081/");
 
             var response = await client.PostAsJsonAsync("api/v1/purchase/transactions/with-conversions", request);
             if (response.IsSuccessStatusCode)
