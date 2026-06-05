@@ -1,0 +1,29 @@
+FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
+WORKDIR /src
+
+# Copy UI project file
+COPY ["Wex.Purchase.UI/Wex.Purchase.UI.csproj", "Wex.Purchase.UI/"]
+COPY ["Wex.Purchase.BusinessModels/Wex.Purchase.BusinessModels.csproj", "Wex.Purchase.BusinessModels/"]
+
+RUN dotnet restore "./Wex.Purchase.UI/Wex.Purchase.UI.csproj"
+COPY . .
+
+# Build UI
+WORKDIR "/src/Wex.Purchase.UI"
+RUN dotnet build "./Wex.Purchase.UI.csproj" -c Release -o /app/build
+
+# Publish UI
+FROM build AS publish
+WORKDIR "/src/Wex.Purchase.UI"
+RUN dotnet publish "./Wex.Purchase.UI.csproj" -c Release -o /app/publish /p:UseAppHost=false
+
+# Runtime stage
+FROM mcr.microsoft.com/dotnet/aspnet:8.0
+WORKDIR /app
+
+EXPOSE 8080
+
+# Copy UI published files
+COPY --from=publish /app/publish .
+
+ENTRYPOINT ["dotnet", "Wex.Purchase.UI.dll"]

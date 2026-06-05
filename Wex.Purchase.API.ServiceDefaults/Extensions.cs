@@ -158,7 +158,19 @@ public static class Extensions
         services.AddScoped<PurchaseManager>();
         services.AddScoped<PurchaseRepository>();
         services.AddSingleton<NoopCircuitBreaker>();
-        services.AddSingleton<IRateLimiter, RateLimiter>();
+
+        // Register RateLimiter with configuration from appsettings.json
+        services.AddSingleton<IRateLimiter>(provider =>
+        {
+            var logger = provider.GetRequiredService<Serilog.ILogger>();
+            var configuration = provider.GetRequiredService<IConfiguration>();
+
+            // Read rate limiting configuration with defaults
+            var maxRequestsPerWindow = configuration.GetValue<int>("RateLimiting:MaxRequestsPerWindow", 60);
+            var windowSizeInSeconds = configuration.GetValue<int>("RateLimiting:WindowSizeInSeconds", 60);
+
+            return new RateLimiter(logger, maxRequestsPerWindow, windowSizeInSeconds);
+        });
 
         // Register Treasury Exchange Rate API client and conversion service
         services.AddHttpClient<ITreasuryExchangeRateClient, TreasuryExchangeRateClient>();

@@ -15,16 +15,22 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - wex-network
 
   api:
     build:
       context: .
       dockerfile: ./Dockerfile
+      target: publish-with-ui
     image: wex-purchase-api:latest
     container_name: wex-api
     environment:
       ASPNETCORE_ENVIRONMENT: Production
-      ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=wex_purchase_db;Username=postgres;Password=postgres;"
+      ConnectionStrings__PurchaseDb: "Host=postgres;Port=5432;Database=wex_purchase_db;Username=postgres;Password=postgres;"
+      ApiAuthentication__ApiKey: "secret"
+      RateLimiting__MaxRequestsPerWindow: "60"
+      RateLimiting__WindowSizeInSeconds: "60"
     ports:
       - "8080:8080"
     depends_on:
@@ -35,6 +41,30 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - wex-network
+
+  ui:
+    build:
+      context: .
+      dockerfile: ./Dockerfile.UI
+    image: wex-purchase-ui:latest
+    container_name: wex-ui
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ApiAuthentication__ApiKey: "secret"
+    ports:
+      - "8085:8080"
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - wex-network
 
   seq:
     image: datalust/seq:latest
@@ -46,9 +76,14 @@ services:
     environment:
       - ACCEPT_EULA=Y  # Mandatory to accept the Seq license agreement
       - SEQ_FIRSTRUN_NOAUTHENTICATION=True
-
     volumes:
       - seq_data:/data
+    networks:
+      - wex-network
+
+networks:
+  wex-network:
+    driver: bridge
 
 volumes:
   postgres_data:

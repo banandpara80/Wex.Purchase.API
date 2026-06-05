@@ -9,6 +9,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends wget ca-certifi
     apt-get remove -y wget ca-certificates && \
     apt-get autoremove -y && apt-get clean && rm -rf /var/lib/apt/lists/*
 
+# Copy all project files
 COPY ["Wex.Purchase.API/Wex.Purchase.API.csproj", "Wex.Purchase.API/"]
 COPY ["Wex.Purchase.API.ServiceDefaults/Wex.Purchase.API.ServiceDefaults.csproj", "Wex.Purchase.API.ServiceDefaults/"]
 COPY ["Wex.Purchase.BusinessModels/Wex.Purchase.BusinessModels.csproj", "Wex.Purchase.BusinessModels/"]
@@ -16,13 +17,20 @@ COPY ["Wex.Purchase.Common/Wex.Purchase.Common.csproj", "Wex.Purchase.Common/"]
 COPY ["Wex.Purchase.Service/Wex.Purchase.Service.csproj", "Wex.Purchase.Service/"]
 COPY ["Wex.Purchase.Manager/Wex.Purchase.Manager.csproj", "Wex.Purchase.Manager/"]
 COPY ["Wex.Purchase.Repository/Wex.Purchase.Repository.csproj", "Wex.Purchase.Repository/"]
+COPY ["Wex.Purchase.UI/Wex.Purchase.UI.csproj", "Wex.Purchase.UI/"]
 COPY ["Wex.Purchase.Unit.Tests/Wex.Purchase.Unit.Tests.csproj", "Wex.Purchase.Unit.Tests/"]
 COPY ["Wex.Purchase.Integration.Tests/Wex.Purchase.Integration.Tests.csproj", "Wex.Purchase.Integration.Tests/"]
 
 RUN dotnet restore "./Wex.Purchase.API/Wex.Purchase.API.csproj"
 COPY . .
+
+# Build API
 WORKDIR "/src/Wex.Purchase.API"
 RUN dotnet build "./Wex.Purchase.API.csproj" -c Release -o /app/build
+
+# Build UI and copy static files to wwwroot
+WORKDIR "/src/Wex.Purchase.UI"
+RUN dotnet build "./Wex.Purchase.UI.csproj" -c Release -o /app/ui-build
 
 # Run tests before publishing
 FROM build AS test
@@ -33,6 +41,11 @@ RUN echo "Running Unit Tests..." && dotnet test "./Wex.Purchase.Unit.Tests/Wex.P
 FROM test AS publish
 WORKDIR /src/Wex.Purchase.API
 RUN dotnet publish "./Wex.Purchase.API.csproj" -c Release -o /app/publish /p:UseAppHost=false
+
+# Copy UI static files to API wwwroot if needed
+FROM publish AS publish-with-ui
+WORKDIR /src/Wex.Purchase.UI
+RUN dotnet publish "./Wex.Purchase.UI.csproj" -c Release -o /app/ui-publish /p:UseAppHost=false
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0
 WORKDIR /app
@@ -49,5 +62,10 @@ ENV DOTNET_ROOT=/usr/share/dotnet
 ENV PATH="$PATH:/usr/share/dotnet"
 
 EXPOSE 8080
-COPY --from=publish /app/publish .
+# Copy API published files
+COPY --from=publish-with-ui /app/publish .
+# Copy UI published files to wwwroot for static file serving (if using Blazor Server)
+# Uncomment the next line if UI should be served as static content from API
+# COPY --from=publish-with-ui /app/ui-publish/wwwroot ./wwwroot/ui
+
 ENTRYPOINT ["dotnet", "Wex.Purchase.API.dll"]
