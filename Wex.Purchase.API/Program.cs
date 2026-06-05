@@ -21,15 +21,6 @@ public class Program
 
         builder.AddServiceDefaults();
 
-        // Add services to the container with JSON options for DateOnly
-        // Register ModelValidationFilter in DI and add it as a filter by service so it executes early and produces ErrorResponse for invalid models
-        //builder.Services.AddScoped<Wex.Purchase.API.Filters.ModelValidationFilter>();
-
-        //builder.Services.Configure<ApiBehaviorOptions>(options =>
-        //{
-        //    options.SuppressModelStateInvalidFilter = true;
-        //});
-
         builder.Services.AddControllers();
 
         // Configure custom response for invalid model state (validation errors)
@@ -76,7 +67,6 @@ public class Program
         app.MapDefaultEndpoints();
 
         // Configure the HTTP request pipeline.
-        // Exception handling via IExceptionHandler (no middleware needed)
 
         app.MapOpenApi();
         app.UseSwagger();

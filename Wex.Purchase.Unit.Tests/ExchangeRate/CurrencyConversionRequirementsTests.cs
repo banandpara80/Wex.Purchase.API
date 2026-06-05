@@ -45,7 +45,7 @@ public class CurrencyConversionRequirementsTests
 
         var exchangeRateRecord = new ExchangeRateRecord
         {
-            CurrencyCode = "EUR",
+            CountryCurrencyDesc = "Cubo-Peso",
             RecordDate = DateOnly.FromDateTime(purchase.TransactionDate),
             ExchangeRate = 1.23m
         };
@@ -55,7 +55,7 @@ public class CurrencyConversionRequirementsTests
             .ReturnsAsync(exchangeRateRecord);
 
         // Act
-        var result = await _conversionService.ConvertPurchaseAsync(purchase, "EUR");
+        var result = await _conversionService.ConvertPurchaseAsync(purchase, "Cubo-Peso");
 
         // Assert
         Assert.NotNull(result);
@@ -84,7 +84,7 @@ public class CurrencyConversionRequirementsTests
 
         var exchangeRateRecord = new ExchangeRateRecord
         {
-            CurrencyCode = "EUR",
+            CountryCurrencyDesc = "Cubo-Peso",
             RecordDate = DateOnly.FromDateTime(purchase.TransactionDate),
             ExchangeRate = 1.15m
         };
@@ -94,7 +94,7 @@ public class CurrencyConversionRequirementsTests
             .ReturnsAsync(exchangeRateRecord);
 
         // Act
-        var result = await _conversionService.ConvertPurchaseAsync(purchase, "EUR");
+        var result = await _conversionService.ConvertPurchaseAsync(purchase, "Cubo-Peso");
 
         // Assert
         Assert.NotNull(result);
@@ -119,11 +119,11 @@ public class CurrencyConversionRequirementsTests
                 };
 
         _mockExchangeRateClient.Setup(c => c.GetExchangeRateWithFallbackAsync(It.IsAny<string>(), It.IsAny<DateOnly>(), It.IsAny<CancellationToken>()))
-            .ThrowsAsync(new InvalidOperationException("No exchange rate found for EUR on 2024-01-01 or in the past 6 months"));
+            .ThrowsAsync(new InvalidOperationException("No exchange rate found for Cubo-Peso on 2024-01-01 or in the past 6 months"));
 
         // Act & Assert
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(
-            async () => await _conversionService.ConvertPurchaseAsync(purchase, "EUR"));
+            async () => await _conversionService.ConvertPurchaseAsync(purchase, "Cubo-Peso"));
 
         Assert.Contains("No exchange rate found", exception.Message);
     }
@@ -151,7 +151,7 @@ public class CurrencyConversionRequirementsTests
 
         // Act & Assert
         await Assert.ThrowsAsync<InvalidOperationException>(
-            async () => await _conversionService.ConvertPurchaseAsync(purchase, "EUR"));
+            async () => await _conversionService.ConvertPurchaseAsync(purchase, "Cubo-Peso"));
     }
 
     /// <summary>
@@ -225,7 +225,7 @@ public class CurrencyConversionRequirementsTests
 
         var exchangeRateRecord = new ExchangeRateRecord
         {
-            CurrencyCode = "EUR",
+            CountryCurrencyDesc = "EUR",
             RecordDate = DateOnly.FromDateTime(purchase.TransactionDate),
             ExchangeRate = 1.15m
         };
@@ -235,7 +235,7 @@ public class CurrencyConversionRequirementsTests
             .ReturnsAsync(exchangeRateRecord);
 
         // Act
-        var result = await _conversionService.ConvertPurchaseAsync(purchase, "EUR");
+        var result = await _conversionService.ConvertPurchaseAsync(purchase, "Cubo-Peso");
 
         // Assert - Verify exactly 2 decimal places
         Assert.NotNull(result.ConvertedAmount);
@@ -263,7 +263,7 @@ public class CurrencyConversionRequirementsTests
 
         var exchangeRateRecord = new ExchangeRateRecord
         {
-            CurrencyCode = "EUR",
+            CountryCurrencyDesc = "Cubo-Peso",
             RecordDate = DateOnly.FromDateTime(purchase.TransactionDate),
             ExchangeRate = 1.0m
         };
@@ -312,12 +312,12 @@ public class CurrencyConversionRequirementsTests
 
         var exchangeRateRecord = new ExchangeRateRecord
         {
-            CurrencyCode = "EUR",
+            CountryCurrencyDesc = "Cubo-Peso",
             RecordDate = DateOnly.FromDateTime(purchases[0].TransactionDate),
             ExchangeRate = 1.15m
         };
 
-        string currency = exchangeRateRecord.CurrencyCode;
+        string currency = exchangeRateRecord.CountryCurrencyDesc;
 
         _mockExchangeRateClient.Setup(c => c.GetExchangeRateWithFallbackAsync(It.IsAny<string>(), It.IsAny<DateOnly>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(exchangeRateRecord);
@@ -358,7 +358,7 @@ public class CurrencyConversionRequirementsTests
 
         var exchangeRateRecord = new ExchangeRateRecord
         {
-            CurrencyCode = "EUR",
+            CountryCurrencyDesc = "Cubo-Peso",
             RecordDate = DateOnly.FromDateTime(purchase.TransactionDate),
             ExchangeRate = 1.18m
         };

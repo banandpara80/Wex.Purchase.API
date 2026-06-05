@@ -45,20 +45,20 @@ public class ExchangeRateCacheManager
     /// Loads rates from the 6 months preceding (and including) the transaction date.
     /// Cache key: Currency + TransactionDate.
     /// </summary>
-    /// <param name="currencyCode">Currency code (e.g., Peso, Rupee).</param>
+    /// <param name="countryCurrencyDesc">Country Currency code (e.g.,  India-Rupee).</param>
     /// <param name="transactionDate">The transaction/purchase date - defines the 6-month window.</param>
     /// <param name="cancellationToken">Cancellation token for the async operation.</param>
     /// <returns>List of exchange rates for the 6 months before and including the transaction date.</returns>
     public async Task<List<ExchangeRateRecord>> GetExchangeRatesForDateAsync(
-        string currencyCode, 
+        string countryCurrencyDesc, 
         DateOnly exchangeRateDate, 
         CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(currencyCode))
-            throw new ArgumentException("Currency code cannot be null or empty", nameof(currencyCode));
+        if (string.IsNullOrWhiteSpace(countryCurrencyDesc))
+            throw new ArgumentException("Country Currency code cannot be null or empty", nameof(countryCurrencyDesc));
 
         // Cache key includes currency AND transaction date for date-specific 6-month windows
-        string cacheKey = $"{currencyCode}_{exchangeRateDate:yyyy-MM-dd}";
+        string cacheKey = $"{countryCurrencyDesc}_{exchangeRateDate:yyyy-MM-dd}";
 
         // Check if cached and not expired
         if (ExchangeRateCache.TryGetValue(cacheKey, out var cachedEntry) && !cachedEntry.IsExpired())
@@ -68,7 +68,7 @@ public class ExchangeRateCacheManager
         }
 
         // Load from API for this specific date window
-        await EnsureCacheLoadedAsync(currencyCode, exchangeRateDate, cacheKey, cancellationToken);
+        await EnsureCacheLoadedAsync(countryCurrencyDesc, exchangeRateDate, cacheKey, cancellationToken);
 
         if (ExchangeRateCache.TryGetValue(cacheKey, out var entry))
         {
@@ -76,7 +76,7 @@ public class ExchangeRateCacheManager
         }
 
         throw new InvalidOperationException(
-            $"No exchange rates found for currency {currencyCode} in the 6 months before {exchangeRateDate:yyyy-MM-dd}");
+            $"No exchange rates found for currency {countryCurrencyDesc} in the 6 months before {exchangeRateDate:yyyy-MM-dd}");
     }
 
     /// <summary>
@@ -84,13 +84,13 @@ public class ExchangeRateCacheManager
     /// Cache key includes transaction date to create date-specific 6-month windows.
     /// </summary>
     private async Task EnsureCacheLoadedAsync(
-        string currencyCode, 
+        string countryCurrencyDesc, 
         DateOnly exchangeRateDate, 
         string cacheKey,
         CancellationToken cancellationToken = default)
     {
-        _logger.Information("Loading exchange rates for {CurrencyCode} with date window ending {ExchangeRateDate}", 
-            currencyCode, exchangeRateDate);
+        _logger.Information("Loading exchange rates for {CountryCurrencyCode} with date window ending {ExchangeRateDate}",
+            countryCurrencyDesc, exchangeRateDate);
 
         try
         {
@@ -102,7 +102,7 @@ public class ExchangeRateCacheManager
             string endDateStr = endDate.ToString("yyyy-MM-dd");
 
             // Build API query for the 6-month period before the transaction date
-            string filter = $"filter=record_date:gte:{startDateStr},record_date:lte:{endDateStr},country_currency_desc:eq:{currencyCode}";
+            string filter = $"filter=record_date:gte:{startDateStr},record_date:lte:{endDateStr},country_currency_desc:eq:{countryCurrencyDesc}";
             string url = $"{TreasuryApiBaseUrl}{ExchangeRatesEndpoint}?{ExchangeRateFields}&{filter}&limit=10000";
 
             // Wrap HTTP call with circuit breaker - only this specific external API call should be protected
@@ -118,8 +118,8 @@ public class ExchangeRateCacheManager
             if (apiResponse?.Data == null || apiResponse.Data.Length == 0)
             {
                 _logger.Warning(
-                    "No exchange rate data received from Treasury API for {CurrencyCode} in period {StartDate} to {EndDate}", 
-                    currencyCode, startDateStr, endDateStr);
+                    "No exchange rate data received from Treasury API for {CurrencyCode} in period {StartDate} to {EndDate}",
+                    countryCurrencyDesc, startDateStr, endDateStr);
             }
 
             // Convert API records to cache format, sorted by date (most recent first)
@@ -127,8 +127,8 @@ public class ExchangeRateCacheManager
                 .Select(r => new ExchangeRateRecord
                 {
                     Country = r.Country,
+                    CountryCurrencyDesc = r.CountryCurrencyDesc,
                     Currency = r.Currency,
-                    CurrencyCode = r.CurrencyCode,
                     ExchangeRate = r.ExchangeRate,
                     RecordDate = ParseDate(r.EffectiveDate)
                 })
@@ -146,21 +146,21 @@ public class ExchangeRateCacheManager
 
             _logger.Information(
                 "Cached {RateCount} exchange rates for {CurrencyCode} with exchange rate date {ExchangeRateDate}", 
-                rates.Count, currencyCode, exchangeRateDate);
+                rates.Count, countryCurrencyDesc, exchangeRateDate);
         }
         catch (HttpRequestException ex)
         {
             _logger.Error(ex,
-                "Failed to load exchange rates from Treasury API for {CurrencyCode} ending {ExchangeRateDate}", 
-                currencyCode, exchangeRateDate);
+                "Failed to load exchange rates from Treasury API for {CurrencyCode} ending {ExchangeRateDate}",
+                countryCurrencyDesc, exchangeRateDate);
             throw new InvalidOperationException(
-                $"Failed to load exchange rates for {currencyCode}: {ex.Message}", ex);
+                $"Failed to load exchange rates for {countryCurrencyDesc}: {ex.Message}", ex);
         }
         catch (Exception ex)
         {
             _logger.Error(ex,
-                "Unexpected error loading exchange rates for {CurrencyCode} ending {ExchangeRateDate}", 
-                currencyCode, exchangeRateDate);
+                "Unexpected error loading exchange rates for {CurrencyCode} ending {ExchangeRateDate}",
+                countryCurrencyDesc, exchangeRateDate);
             throw;
         }
     }
@@ -244,8 +244,8 @@ public class ExchangeRateCacheEntry
 public class ExchangeRateRecord
 {
     public string? Country { get; set; }
+    public string? CountryCurrencyDesc { get; set; }
     public string? Currency { get; set; }
-    public string? CurrencyCode { get; set; }
     public decimal ExchangeRate { get; set; }
     public DateOnly RecordDate { get; set; }
 }

@@ -80,7 +80,6 @@ public class ExchangeRateNotFoundException : PurchaseApplicationException
     }
 }
 
-
 /// <summary>
 /// Exception thrown when database operations fail.
 /// </summary>

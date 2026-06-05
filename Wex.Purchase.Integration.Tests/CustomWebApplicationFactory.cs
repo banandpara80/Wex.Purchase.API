@@ -2,31 +2,73 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
-using Wex.Purchase.API;
+using Testcontainers.PostgreSql;
 using Wex.Purchase.Repository;
+using Xunit;
 
-namespace Wex.Purchase.Integration.Tests;
-
-public class CustomWebApplicationFactory : WebApplicationFactory<Program>
+namespace Wex.Purchase.Integration.Tests
 {
-    protected override void ConfigureWebHost(IWebHostBuilder builder)
+    public class CustomWebApplicationFactory : WebApplicationFactory<Program>, IAsyncLifetime
     {
-        builder.ConfigureServices(services =>
+        private PostgreSqlContainer? _postgreSqlContainer;
+
+       
+        public async Task InitializeAsync()
         {
-            var descriptor = services.SingleOrDefault(d => d.ServiceType == typeof(DbContextOptions<PurchaseDbContext>));
-            if (descriptor != null)
-                services.Remove(descriptor);
+            _postgreSqlContainer = new PostgreSqlBuilder()
+                .WithDatabase("purchasedb")
+                .WithUsername("postgres")
+                .WithPassword("postgres")
+                .Build();
 
-            services.AddDbContext<PurchaseDbContext>(options =>
+
+            await _postgreSqlContainer.StartAsync();
+
+
+        }
+
+        public async Task DisposeAsync()
+        {
+            if (_postgreSqlContainer != null)
             {
-                options.UseInMemoryDatabase("IntegrationTestsDb");
-            });
+                await _postgreSqlContainer.StopAsync();
+                await _postgreSqlContainer.DisposeAsync();
+            }
+        }
 
-            // Ensure database is created
-            var sp = services.BuildServiceProvider();
-            using var scope = sp.CreateScope();
-            var db = scope.ServiceProvider.GetRequiredService<PurchaseDbContext>();
-            db.Database.EnsureCreated();
-        });
+        protected override void ConfigureWebHost(IWebHostBuilder builder)
+        {
+            builder.ConfigureServices(services =>
+            {
+                // Remove the existing DbContext registration
+                var descriptor = services.FirstOrDefault(d =>
+                    d.ServiceType == typeof(DbContextOptions<PurchaseDbContext>));
+
+                if (descriptor != null)
+                {
+                    services.Remove(descriptor);
+                }
+
+                // Add DbContext with PostgreSQL testcontainer connection string
+                services.AddDbContext<PurchaseDbContext>(options =>
+                {
+                    if (_postgreSqlContainer != null)
+                    {
+                        options.UseNpgsql(_postgreSqlContainer.GetConnectionString());
+                    }
+                });
+
+
+                // Build service provider and migrate database
+                var sp = services.BuildServiceProvider();
+
+                using (var scope = sp.CreateScope())
+                {
+                    var dbContext = scope.ServiceProvider.GetRequiredService<PurchaseDbContext>();
+                    dbContext.Database.EnsureCreated();
+                }
+
+            });
+        }
     }
 }

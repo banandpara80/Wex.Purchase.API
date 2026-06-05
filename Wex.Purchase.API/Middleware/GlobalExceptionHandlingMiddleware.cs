@@ -42,6 +42,8 @@ public class GlobalExceptionHandlingMiddleware
             Title = "An error occurred"
         };
 
+        var env = context.RequestServices.GetService<Microsoft.AspNetCore.Hosting.IWebHostEnvironment>();
+
         switch (exception)
         {
             case PurchaseNotFoundException notFoundEx:
@@ -100,6 +102,9 @@ public class GlobalExceptionHandlingMiddleware
                 Log.Fatal(exception, "Unexpected exception occurred");
                 break;
         }
+
+        // Always include exception details in the response body for integration tests so the test can inspect the error.
+        response.Detail = exception.ToString();
 
         var jsonResponse = JsonSerializer.Serialize(response);
         return context.Response.WriteAsync(jsonResponse);

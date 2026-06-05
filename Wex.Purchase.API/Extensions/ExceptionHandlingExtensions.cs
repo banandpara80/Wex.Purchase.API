@@ -1,17 +1,9 @@
 using Microsoft.AspNetCore.Diagnostics;
-using Microsoft.Extensions.DependencyInjection;
-using Wex.Purchase.Common.CircuitBreaker;
-using Polly.CircuitBreaker;
+using Microsoft.AspNetCore.Hosting;
 using Serilog;
 using Wex.Purchase.API.Middleware;
 using Wex.Purchase.API.Models;
 using Wex.Purchase.Common.Exceptions;
-using Wex.Purchase.Manager;
-using Wex.Purchase.Manager.Exceptions;
-using Wex.Purchase.Repository;
-using Wex.Purchase.Repository.Exceptions;
-using Wex.Purchase.Service;
-using Wex.Purchase.Service.Exceptions;
 
 namespace Wex.Purchase.API.Extensions
 {

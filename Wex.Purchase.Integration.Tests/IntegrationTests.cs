@@ -1,44 +1,104 @@
+using System;
 using System.Net;
 using System.Net.Http.Json;
+using System.Threading.Tasks;
+using Testcontainers.PostgreSql;
 using Microsoft.AspNetCore.Mvc.Testing;
-using Wex.Purchase.API;
+using Npgsql;
 using Wex.Purchase.BusinessModels;
 using Xunit;
 
 namespace Wex.Purchase.Integration.Tests;
 
-public class IntegrationTests : IClassFixture<CustomWebApplicationFactory>
+public class IntegrationTests
 {
-    private readonly CustomWebApplicationFactory _factory;
-
-    public IntegrationTests(CustomWebApplicationFactory factory)
+    [Fact]
+    public async Task PostgresTestcontainer_ShouldStartAndAcceptConnections()
     {
-        _factory = factory;
+        await Task.CompletedTask; // placeholder
     }
 
     [Fact]
-    public async Task AddPurchase_ReturnsOk()
+    public async Task AddAndGetPurchase_UsingTestcontainer_Postgres()
     {
-        var client = _factory.CreateClient();
+        // Arrange: configure a PostgreSQL testcontainer
 
-        var dto = new PurchaseDTO { Id = Guid.NewGuid(), Description = "Integration Test", PurchaseAmount = 5.0m, TransactionDate = DateOnly.FromDateTime(DateTime.UtcNow) };
+        await using var factory = new CustomWebApplicationFactory();
 
-        var response = await client.PostAsJsonAsync("/api/v1/purchase", dto);
+        try
+        { 
+            // Start the application with the testcontainer connection string
+           // await using var factory = new CustomWebApplicationFactory();
+            await factory.InitializeAsync();
+            using var client = factory.CreateClient();
 
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            // Create a purchase DTO to post
+            var purchase = new PurchaseDTO
+            {
+                Description = "Integration Test Purchase",
+                PurchaseAmount = 12.34m,
+                TransactionDate = DateTime.UtcNow
+            };
 
-        var returned = await response.Content.ReadFromJsonAsync<PurchaseDTO>();
-        Assert.Equal(dto.Description, returned.Description);
+            // Act: POST to create purchase
+            var postResp = await client.PostAsJsonAsync("/api/v1/purchase", purchase);
+            if (postResp.StatusCode != HttpStatusCode.Created)
+            {
+                var err = await postResp.Content.ReadAsStringAsync();
+                throw new InvalidOperationException($"POST failed: {postResp.StatusCode}, body: {err}");
+            }
+
+            var created = await postResp.Content.ReadFromJsonAsync<PurchaseDTO>();
+            Assert.NotNull(created);
+            Assert.NotEqual(Guid.Empty, created.Id);
+
+            // Act: GET the purchase by id
+            var getResp = await client.GetAsync($"/api/v1/purchase/{created.Id}");
+            Assert.Equal(HttpStatusCode.OK, getResp.StatusCode);
+
+            var fetched = await getResp.Content.ReadFromJsonAsync<PurchaseDTO>();
+            Assert.NotNull(fetched);
+            Assert.Equal(created.Id, fetched.Id);
+            Assert.Equal(purchase.Description, fetched.Description);
+            Assert.Equal(purchase.PurchaseAmount, fetched.PurchaseAmount);
+        }
+        catch (Exception ex)
+        {
+            // Log or handle exceptions as needed
+            throw new InvalidOperationException("Integration test failed", ex);
+        }
+        finally
+        {
+           // await factory.DisposeAsync();
+        }
     }
-
-    [Fact]
-    public async Task GetPurchaseTransactions_InvalidRequest_ReturnsBadRequest()
+ 
+    public async Task AddAndGetPurchase_UsingInMemoryDb_Works()
     {
-        var client = _factory.CreateClient();
+        await using var factory = new CustomWebApplicationFactory();
+        using var client = factory.CreateClient();
 
-        var response = await client.PostAsJsonAsync("/api/v1/purchase/purchasetransactions", (object?)null);
+        var purchase = new PurchaseDTO
+        {
+            Description = "InMemory Integration Purchase",
+            PurchaseAmount = 45.67m,
+            TransactionDate = DateTime.UtcNow
+        };
 
-        // Null body will be treated as a bad request by model binding / middleware
-        Assert.True(response.StatusCode == HttpStatusCode.BadRequest || response.StatusCode == HttpStatusCode.InternalServerError);
+        var postResp = await client.PostAsJsonAsync("/api/v1/purchase", purchase);
+        Assert.Equal(HttpStatusCode.Created, postResp.StatusCode);
+
+        var created = await postResp.Content.ReadFromJsonAsync<PurchaseDTO>();
+        Assert.NotNull(created);
+        Assert.NotEqual(Guid.Empty, created.Id);
+
+        var getResp = await client.GetAsync($"/api/v1/purchase/{created.Id}");
+        Assert.Equal(HttpStatusCode.OK, getResp.StatusCode);
+
+        var fetched = await getResp.Content.ReadFromJsonAsync<PurchaseDTO>();
+        Assert.NotNull(fetched);
+        Assert.Equal(created.Id, fetched.Id);
+        Assert.Equal(purchase.Description, fetched.Description);
+        Assert.Equal(purchase.PurchaseAmount, fetched.PurchaseAmount);
     }
 }

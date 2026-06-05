@@ -11,32 +11,44 @@
     <h3>Create Purchase</h3>
 
     <div class="mb-3">
-        <label>Description</label>
-        <InputText @bind-Value="editModel.Description" class="form-control" maxlength="50" />
+        <label><span style="color: red;">*</span> Description</label>
+        <InputText @bind-Value="editModel.Description" class="form-control" maxlength="50" required />
         <ValidationMessage For="@(() => editModel.Description)" />
     </div>
 
     <div class="mb-3">
-        <label>Transaction Date</label>
-        <InputDate @bind-Value="editModel.TransactionDate" class="form-control" />
+        <label><span style="color: red;">*</span> Transaction Date</label>
+        <InputDate @bind-Value="editModel.TransactionDate" class="form-control" required />
         <ValidationMessage For="@(() => editModel.TransactionDate)" />
     </div>
 
     <div class="mb-3">
-        <label>Purchase Amount</label>
-        <InputNumber @bind-Value="editModel.PurchaseAmount" class="form-control" step="0.01" />
+        <label><span style="color: red;">*</span> Purchase Amount</label>
+        <InputNumber @bind-Value="editModel.PurchaseAmount" class="form-control" step="0.01" required />
         <ValidationMessage For="@(() => editModel.PurchaseAmount)" />
     </div>
 
     <button type="submit" class="btn btn-primary">Save Purchase</button>
 </EditForm>
 
+@if (apiErrors != null && apiErrors.Any())
+{
+    <div class="alert alert-danger" role="alert">
+        <ul class="mb-0">
+            @foreach (var e in apiErrors)
+            {
+                <li>@e</li>
+            }
+        </ul>
+    </div>
+}
+
 <hr />
 
 <h3>Get Purchase by Id</h3>
 <div class="mb-3">
-    <label>Purchase Id</label>
-    <input @bind="queryId" class="form-control" />
+    <label><span style="color: red;">*</span>Purchase Id</label>
+    <input @bind="queryId" class="form-control" required />
 </div>
 <button class="btn btn-secondary" @onclick="GetPurchase">Get Purchase</button>
 
@@ -56,45 +68,47 @@
 
 <h3>Fetch Transactions with Conversions</h3>
 <div class="mb-3">
-    <label>Purchase Ids (comma separated)</label>
-    <input @bind="idsInput" class="form-control" placeholder="id1,id2,..." />
+    <label><span style="color: red;">*</span>Purchase Ids (comma separated)</label>
+    <input @bind="idsInput" class="form-control" placeholder="id1,id2,..." required/>
 </div>
 <div class="mb-3">
-    <label>Currency</label>
-    <input @bind="currency" class="form-control" placeholder="Peso" />
+    <label><span style="color: red;">*</span>Currency</label>
+    <input @bind="currency" class="form-control" placeholder="India-Rupee" required/>
 </div>
 <button class="btn btn-info" @onclick="FetchConversions">Fetch Conversions</button>
 
 @if (convertedTransactions != null && convertedTransactions.Any())
 {
     <h4>Converted Transactions</h4>
-    <table class="table table-striped table-bordered">
-        <thead>
-            <tr>
-                <th>Identifier</th>
-                <th>Description</th>
-                <th>Transaction Date</th>
-                <th>Original (USD)</th>
-                <th>Exchange Rate Used</th>
-                <th>Converted Amount</th>
-                <th>Note</th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (var t in convertedTransactions)
-            {
+    <div style="border: 1px solid #dee2e6; border-radius: 0.25rem; overflow: hidden;">
+        <table class="table table-striped table-bordered m-0">
+            <thead class="table-light">
                 <tr>
-                    <td>@t.Purchase.Id</td>
-                    <td>@t.Purchase.Description</td>
-                    <td>@t.Purchase.TransactionDate.ToString("yyyy-MM-dd")</td>
-                    <td>@(t.Purchase.PurchaseAmount.ToString())</td>
-                    <td>@t.ExchangeRate.ToString()</td>
-                    <td>@t.ConvertedAmount.ToString()</td>
-                    <td>@t.Note.ToString()</td>
+                    <th style="border: 1px solid #dee2e6; padding: 0.75rem;">Identifier</th>
+                    <th style="border: 1px solid #dee2e6; padding: 0.75rem;">Description</th>
+                    <th style="border: 1px solid #dee2e6; padding: 0.75rem;">Transaction Date</th>
+                    <th style="border: 1px solid #dee2e6; padding: 0.75rem;">Original (USD)</th>
+                    <th style="border: 1px solid #dee2e6; padding: 0.75rem;">Exchange Rate Used</th>
+                    <th style="border: 1px solid #dee2e6; padding: 0.75rem;">Converted Amount</th>
+                    <th style="border: 1px solid #dee2e6; padding: 0.75rem;">Note</th>
                 </tr>
-            }
-        </tbody>
-    </table>
+            </thead>
+            <tbody>
+                @foreach (var t in convertedTransactions)
+                {
+                    <tr>
+                        <td style="border: 1px solid #dee2e6; padding: 0.75rem;">@t.Purchase.Id</td>
+                        <td style="border: 1px solid #dee2e6; padding: 0.75rem;">@t.Purchase.Description</td>
+                        <td style="border: 1px solid #dee2e6; padding: 0.75rem;">@t.Purchase.TransactionDate.ToString()</td>
+                        <td style="border: 1px solid #dee2e6; padding: 0.75rem;">@(t.Purchase.PurchaseAmount.ToString())</td>
+                        <td style="border: 1px solid #dee2e6; padding: 0.75rem;">@t.ExchangeRate.ToString()</td>
+                        <td style="border: 1px solid #dee2e6; padding: 0.75rem;">@t.ConvertedAmount.ToString()</td>
+                        <td style="border: 1px solid #dee2e6; padding: 0.75rem;">@t.Note?.ToString()</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
 }
 
 @code {
@@ -109,6 +123,9 @@
     private PurchaseDTO? savedPurchase;
     private PurchaseDTO? queriedPurchase;
 
+    // API errors to display to the user (rendered in red)
+    private List<string> apiErrors = new();
+
     protected override void OnInitialized()
     {
         editModel.TransactionDate = DateTime.UtcNow;
@@ -116,6 +133,8 @@
 
     private async Task HandleValidSubmit()
     {
+        apiErrors.Clear();
+
         var client = HttpClientFactory.CreateClient();
         client.BaseAddress = new Uri("http://localhost:5271/");
 
@@ -130,16 +149,18 @@
         if (response.IsSuccessStatusCode)
         {
             savedPurchase = await response.Content.ReadFromJsonAsync<PurchaseDTO>();
+            apiErrors.Clear();
         }
         else
         {
-            var txt = await response.Content.ReadAsStringAsync();
-            Console.WriteLine($"Error saving: {txt}");
+            apiErrors = await ReadErrors(response);
         }
     }
 
     private async Task GetPurchase()
     {
+        apiErrors.Clear();
+
         var client = HttpClientFactory.CreateClient();
         client.BaseAddress = new Uri("http://localhost:5271/");
 
@@ -149,11 +170,11 @@
             if (response.IsSuccessStatusCode)
             {
                 queriedPurchase = await response.Content.ReadFromJsonAsync<PurchaseDTO>();
+                apiErrors.Clear();
             }
             else
             {
-                var txt = await response.Content.ReadAsStringAsync();
-                Console.WriteLine($"Error getting: {txt}");
+                apiErrors = await ReadErrors(response);
             }
         }
     }
@@ -161,6 +182,7 @@
     private async Task FetchConversions()
     {
         convertedTransactions = null;
+        apiErrors.Clear();
 
         if (String.IsNullOrEmpty(idsInput))
         {
@@ -191,19 +213,41 @@
             if (response.IsSuccessStatusCode)
             {
                 convertedTransactions = await response.Content.ReadFromJsonAsync<List<PurchaseWithExchangeRateDTO>>();
+                apiErrors.Clear();
             }
             else
             {
-                var txt = await response.Content.ReadAsStringAsync();
-                Console.WriteLine($"Error fetching conversions: {txt}");
+                apiErrors = await ReadErrors(response);
                 convertedTransactions = new List<PurchaseWithExchangeRateDTO>();
             }
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Exception fetching conversions: {ex.Message}");
+            apiErrors = new List<string> { ex.Message };
             convertedTransactions = new List<PurchaseWithExchangeRateDTO>();
         }
+    }
+
+    private async Task<List<string>> ReadErrors(HttpResponseMessage response)
+    {
+        try
+        {
+            var apiErr = await response.Content.ReadFromJsonAsync<ApiError>();
+            if (apiErr?.Errors != null && apiErr.Errors.Any())
+            {
+                return apiErr.Errors.ToList();
+            }
+
+            var txt = await response.Content.ReadAsStringAsync();
+            if (!string.IsNullOrWhiteSpace(txt)) return new List<string> { txt };
+        }
+        catch
+        {
+            var txt = await response.Content.ReadAsStringAsync();
+            if (!string.IsNullOrWhiteSpace(txt)) return new List<string> { txt };
+        }
+
+        return new List<string> { $"Request failed with status {(int)response.StatusCode}" };
     }
 
     private class PurchaseViewModel
@@ -220,5 +264,13 @@
         [Required(ErrorMessage = "Amount is required.")]
         [Range(0.01, double.MaxValue, ErrorMessage = "Amount must be greater than zero.")]
         public decimal PurchaseAmount { get; set; }
+    }
+
+    private class ApiError
+    {
+        public int Status { get; set; }
+        public string? Title { get; set; }
+        public string? Detail { get; set; }
+        public List<string>? Errors { get; set; }
     }
 }

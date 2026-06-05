@@ -25,14 +25,15 @@ public class TreasuryExchangeRateRecord
     public string? Country { get; set; }
 
     /// <summary>
-    /// Gets or sets the currency name.
+    /// Gets or sets the currency desc.
     /// </summary>
-    public string? Currency { get; set; }
+    [JsonPropertyName("country_currency_desc")]
+    public string? CountryCurrencyDesc{ get; set; }
 
     /// <summary>
-    /// Gets or sets the ISO 4217 currency code (e.g., EUR, GBP).
+    /// Gets or sets the Currency
     /// </summary>
-    public string? CurrencyCode { get; set; }
+    public string? Currency { get; set; }
 
     /// <summary>
     /// Gets or sets the exchange rate value (units of foreign currency per U.S. dollar).
@@ -44,5 +45,6 @@ public class TreasuryExchangeRateRecord
     /// <summary>
     /// Gets or sets the effective date for this exchange rate (format: yyyy-MM-dd).
     /// </summary>
+    [JsonPropertyName("record_date")]
     public string? EffectiveDate { get; set; }
 }

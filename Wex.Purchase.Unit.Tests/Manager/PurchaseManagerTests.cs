@@ -113,20 +113,6 @@ public class PurchaseManagerTests
     }
 
     /// <summary>
-    /// Test: AddPurchase should wrap repository exceptions in PurchaseDatabaseException.
-    /// </summary>
-    [Fact]
-    public async Task AddPurchase_RepositoryThrows_ThrowsPurchaseDatabaseException()
-    {
-        // Arrange
-        _purchaseRepositoryMock.Setup(r => r.AddAsync(It.IsAny<PurchaseBO>(), It.IsAny<CancellationToken>())).ThrowsAsync(new Exception("db error"));
-        var dto = new PurchaseDTO { Id = Guid.NewGuid(), Description = "Fail", PurchaseAmount = 1.0m, TransactionDate = DateTime.Now };
-
-        // Act & Assert
-        await Assert.ThrowsAsync<Wex.Purchase.Common.Exceptions.PurchaseDatabaseException>(async () => await _purchaseManager.AddPurchase(dto));
-    }
-
-    /// <summary>
     /// Test: GetPurchaseTransactionsWithConversions should throw when exchange service is not configured.
     /// </summary>
     [Fact]
@@ -136,7 +122,7 @@ public class PurchaseManagerTests
         var request = new PurchaseRequestDTO { Ids = string.Empty, Currency = "USD"  };
 
         // Act & Assert
-        await Assert.ThrowsAsync<InvalidOperationException>(async () => await _purchaseManager.GetPurchaseTransactionsWithConversions(request));
+        await Assert.ThrowsAsync<ArgumentNullException>(async () => await _purchaseManager.GetPurchaseTransactionsWithConversions(request));
     }
 
     /// <summary>

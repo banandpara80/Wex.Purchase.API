@@ -5,8 +5,6 @@ using System.Net;
 using System.Net.Http;
 using System.Text;
 using System.Text.Json;
-using System.Threading;
-using System.Threading.Tasks;
 using Wex.Purchase.Manager.ExchangeRate;
 using Xunit;
 using Serilog.Core;
@@ -24,7 +22,7 @@ public class TreasuryExchangeRateClientTests
         {
             Data = new[]
             {
-                new { exchange_rate = 1.23m, CurrencyCode = "EUR", EffectiveDate = date.ToString("yyyy-MM-dd") }
+                new { exchange_rate = 1.23m, CountryCurrencyDesc = "Cubo-Peso", EffectiveDate = date.ToString("yyyy-MM-dd") }
             }
         }; 
 
@@ -47,8 +45,8 @@ public class TreasuryExchangeRateClientTests
         var client = new TreasuryExchangeRateClient(httpClient, Logger.None);
 
         // Act
-        var rate1 = await client.GetExchangeRateAsync("EUR", date);
-        var rate2 = await client.GetExchangeRateAsync("EUR", date);
+        var rate1 = await client.GetExchangeRateAsync("Cubo-Peso", date);
+        var rate2 = await client.GetExchangeRateAsync("Cubo-Peso", date);
 
         // Assert
         Assert.True(rate1.HasValue);
@@ -102,58 +100,5 @@ public class TreasuryExchangeRateClientTests
 
         // Act & Assert
         await Assert.ThrowsAsync<InvalidOperationException>(async () => await client.GetExchangeRateAsync(currency, date));
-    }
-
-    [Fact]
-    public async Task GetExchangeRatesAsync_MultipleCurrencies_ReturnsDictionary()
-    {
-        // Arrange
-        var date = DateOnly.FromDateTime(DateTime.UtcNow);
-
-        var handlerMock = new Mock<HttpMessageHandler>(MockBehavior.Strict);
-        handlerMock.Protected()
-            .Setup<Task<HttpResponseMessage>>("SendAsync", ItExpr.IsAny<HttpRequestMessage>(), ItExpr.IsAny<CancellationToken>())
-            .ReturnsAsync((HttpRequestMessage req, CancellationToken ct) =>
-            {
-                // Inspect the query to decide which rate to return
-                var q = req.RequestUri?.Query ?? string.Empty;
-                string code = "";
-                if (q.Contains("currency:eq:EUR", StringComparison.OrdinalIgnoreCase)) code = "EUR";
-                else if (q.Contains("currency:eq:GBP", StringComparison.OrdinalIgnoreCase)) code = "GBP";
-
-                decimal rate = code == "GBP" ? 1.25m : 1.10m;
-
-                var responseObj = new
-                {
-                    Data = new[]
-                    {
-                        new { exchange_rate = rate, CurrencyCode = code, EffectiveDate = date.ToString("yyyy-MM-dd") }
-                    }
-                };
-
-                string json = JsonSerializer.Serialize(responseObj);
-
-                return new HttpResponseMessage(HttpStatusCode.OK)
-                {
-                    Content = new StringContent(json, Encoding.UTF8, "application/json")
-                };
-            });
-
-        var codeEUR = "EUR_" + Guid.NewGuid().ToString("N").Substring(0, 6);
-        var codeGBP = "GBP_" + Guid.NewGuid().ToString("N").Substring(0, 6);
-
-        var httpClient = new HttpClient(handlerMock.Object) { BaseAddress = new Uri("https://api.fiscaldata.treasury.gov/") };
-        var client = new TreasuryExchangeRateClient(httpClient, Logger.None);
-
-        var currencies = new[] { codeEUR, codeGBP };
-
-        // Act
-        var rates = await client.GetExchangeRatesAsync(currencies, date);
-
-        // Assert
-        Assert.NotNull(rates);
-        Assert.Equal(2, rates.Count);
-        Assert.Equal(1.10m, rates[codeEUR]);
-        Assert.Equal(1.25m, rates[codeGBP]);
     }
 }

@@ -89,8 +89,8 @@ public class PurchaseController : ControllerBase
     /// </summary>
     /// <param name="id">Purchase Id</param>
     /// <returns>Purchase DTO matching the criteria.</returns>
-    [HttpGet(Name = "purchase/{id:guid}")]
-    public async Task<ActionResult<PurchaseDTO>> Get(Guid id)
+    [HttpGet("{id:guid}", Name = "GetPurchaseById")]
+    public async Task<ActionResult<PurchaseDTO>> Get([FromRoute] Guid id)
     {
         _logger.Information("Getting purchases");
 
@@ -111,7 +111,9 @@ public class PurchaseController : ControllerBase
     public async Task<ActionResult<PurchaseDTO>> AddPurchase([FromBody] PurchaseDTO purchaseDTO)
     {
         _logger.Information("Adding purchase");
+        
         await EnsureRateLimitAsync(HttpContext?.RequestAborted ?? CancellationToken.None);
+        
         if (purchaseDTO == null)
             return BadRequest();
 
