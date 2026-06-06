@@ -1,9 +1,10 @@
-FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
 
-# Copy UI project file
+# Copy all project files
 COPY ["Wex.Purchase.UI/Wex.Purchase.UI.csproj", "Wex.Purchase.UI/"]
 COPY ["Wex.Purchase.BusinessModels/Wex.Purchase.BusinessModels.csproj", "Wex.Purchase.BusinessModels/"]
+COPY ["Wex.Purchase.Common/Wex.Purchase.Common.csproj", "Wex.Purchase.Common/"]
 
 RUN dotnet restore "./Wex.Purchase.UI/Wex.Purchase.UI.csproj"
 COPY . .
@@ -18,7 +19,7 @@ WORKDIR "/src/Wex.Purchase.UI"
 RUN dotnet publish "./Wex.Purchase.UI.csproj" -c Release -o /app/publish /p:UseAppHost=false
 
 # Runtime stage
-FROM mcr.microsoft.com/dotnet/aspnet:8.0
+FROM mcr.microsoft.com/dotnet/aspnet:10.0
 WORKDIR /app
 
 EXPOSE 8080
