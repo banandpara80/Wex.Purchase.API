@@ -100,8 +100,8 @@
                         <td style="border: 1px solid #dee2e6; padding: 0.75rem;">@t.Purchase.Description</td>
                         <td style="border: 1px solid #dee2e6; padding: 0.75rem;">@t.Purchase.TransactionDate.ToString()</td>
                         <td style="border: 1px solid #dee2e6; padding: 0.75rem;">@(t.Purchase.PurchaseAmount.ToString())</td>
-                        <td style="border: 1px solid #dee2e6; padding: 0.75rem;">@t.ExchangeRate.ToString()</td>
-                        <td style="border: 1px solid #dee2e6; padding: 0.75rem;">@t.ConvertedAmount.ToString()</td>
+                        <td style="border: 1px solid #dee2e6; padding: 0.75rem;">@t.ExchangeRate?.ToString()</td>
+                        <td style="border: 1px solid #dee2e6; padding: 0.75rem;">@t.ConvertedAmount?.ToString()</td>
                         <td style="border: 1px solid #dee2e6; padding: 0.75rem;">@t.Note?.ToString()</td>
                     </tr>
                 }
@@ -136,6 +136,7 @@
 
         var client = HttpClientFactory.CreateClient();
         client.BaseAddress = new Uri("http://host.docker.internal:8080/");
+        //client.BaseAddress = new Uri("http://localhost:5271/");
 
         var dto = new PurchaseDTO
         {
@@ -162,6 +163,7 @@
 
         var client = HttpClientFactory.CreateClient();
         client.BaseAddress = new Uri("http://host.docker.internal:8080/");
+        //client.BaseAddress = new Uri("http://localhost:5271/");
 
         if (Guid.TryParse(queryId, out var id))
         {
@@ -206,6 +208,7 @@
         try
         {
             var client = HttpClientFactory.CreateClient();
+            //client.BaseAddress = new Uri("http://localhost:5271/");
             client.BaseAddress = new Uri("http://host.docker.internal:8080/");
 
             var response = await client.PostAsJsonAsync("api/v1/purchase/transactions/with-conversions", request);
@@ -278,8 +281,8 @@
     private class PurchaseWithExchangeRateDTO
     {
         public PurchaseDTO? Purchase { get; set; }
-        public decimal ExchangeRate { get; set; }
-        public decimal ConvertedAmount { get; set; }
+        public decimal? ExchangeRate { get; set; }
+        public decimal? ConvertedAmount { get; set; }
         public string? Note { get; set; }
     }
 
