@@ -363,3 +363,4 @@ MigrationBackup/
 FodyWeavers.xsd
 /Wex.Purchase.API/Middleware/ApiKeyAuthenticationMiddleware.cs
 /Wex.Purchase.UI/Services/AuthenticationHttpMessageHandler.cs
+/Wex.Purchase.API/Extensions/AuthenticationExtensions.cs

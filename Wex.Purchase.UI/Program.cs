@@ -5,7 +5,14 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddRazorPages();
 builder.Services.AddServerSideBlazor();
-builder.Services.AddHttpClient();
+
+// POC: register an ApiKey handler and a named HttpClient that reads base URL from configuration
+builder.Services.AddTransient<ApiKeyHandler>();
+builder.Services.AddHttpClient("ApiClient", client =>
+{
+    client.BaseAddress = new Uri(builder.Configuration["ApiAuthentication:BaseUrl"] ?? "http://host.docker.internal:8080/");
+})
+.AddHttpMessageHandler<ApiKeyHandler>();
 
 var app = builder.Build();
 

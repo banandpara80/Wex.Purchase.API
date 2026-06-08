@@ -52,6 +52,7 @@ public class Program
         //Register services
         builder.Services.AddInfrastructure();
         builder.Services.AddGlobalExceptionHandling();
+        builder.Services.AddBearerAuthentication();
 
         //Register Serilog to work on top of Microsoft Logging
         builder.Host.UseSerilog((context, loggerConfig) =>
@@ -70,16 +71,20 @@ public class Program
 
         // Configure the HTTP request pipeline.
 
+        // Enable serving static files BEFORE Swagger so custom scripts are accessible
+        app.UseStaticFiles();
+
         app.MapOpenApi();
         app.UseSwagger();
         app.UseSwaggerUI(c =>
         {
-            // Notice the missing leading slash or use of relative notation
-            c.SwaggerEndpoint("v1/swagger.json", "My API V1");
+            c.SwaggerEndpoint("/swagger/v1/swagger.json", "My API V1");
+            c.InjectJavascript("/swagger-ui-custom.js", "text/javascript");
         });
 
         app.UseHttpsRedirection();
 
+        app.UseAuthentication();
         app.UseAuthorization();
 
         // Apply EF Core migrations at startup to ensure database schema is created

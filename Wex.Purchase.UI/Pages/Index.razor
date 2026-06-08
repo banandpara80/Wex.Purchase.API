@@ -134,9 +134,7 @@
     {
         apiErrors.Clear();
 
-        var client = HttpClientFactory.CreateClient();
-        client.BaseAddress = new Uri("http://host.docker.internal:8080/");
-        //client.BaseAddress = new Uri("http://localhost:5271/");
+        var client = HttpClientFactory.CreateClient("ApiClient");
 
         var dto = new PurchaseDTO
         {
@@ -161,9 +159,7 @@
     {
         apiErrors.Clear();
 
-        var client = HttpClientFactory.CreateClient();
-        client.BaseAddress = new Uri("http://host.docker.internal:8080/");
-        //client.BaseAddress = new Uri("http://localhost:5271/");
+        var client = HttpClientFactory.CreateClient("ApiClient");
 
         if (Guid.TryParse(queryId, out var id))
         {
@@ -207,9 +203,7 @@
 
         try
         {
-            var client = HttpClientFactory.CreateClient();
-            //client.BaseAddress = new Uri("http://localhost:5271/");
-            client.BaseAddress = new Uri("http://host.docker.internal:8080/");
+            var client = HttpClientFactory.CreateClient("ApiClient");
 
             var response = await client.PostAsJsonAsync("api/v1/purchase/transactions/with-conversions", request);
             if (response.IsSuccessStatusCode)

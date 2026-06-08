@@ -1,4 +1,7 @@
 <Solution>
+  <Folder Name="/Solution Items/">
+    <File Path="README.md" />
+  </Folder>
   <Project Path="Wex.Purchase.API.AppHost/Wex.Purchase.API.AppHost.csproj" />
   <Project Path="Wex.Purchase.API.ServiceDefaults/Wex.Purchase.API.ServiceDefaults.csproj" />
   <Project Path="Wex.Purchase.API/Wex.Purchase.API.csproj" />

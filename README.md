@@ -41,6 +41,14 @@ The framework provides not only the core business functionality but also a compr
 * Centralized error management
 * Fault-tolerant service communication
 
+### Security
+* Authentication
+
+To demonstrate how APIs should be secured in a production environment, the application includes a basic Bearer token authentication mechanism.
+All protected endpoints require the following HTTP header:
+
+Authorization: Bearer <token>
+
 ### Testing
 
 * Comprehensive unit test suite
@@ -122,7 +130,18 @@ After startup, the following components will be available:
 
 ### Test the API Endpoints from Swagger UI.
 The API endpoints can be tested directly from the Swagger UI at http://localhost:8080/swagger. This allows for interactive testing of all available API operations, including the ability to input parameters and view responses in real-time.
-NOTE: For AddPurchase endpoint, the "id" field NEED NOT be passed.
+
+The API endpoints can be tested directly from the Swagger UI at http://localhost:8080/swagger.
+
+Before testing protected endpoints:
+
+1. The **Bearer Token Authentication** section should be at the top of the Swagger page.
+2. Enter `secret` as the Token.
+3. Click **Set Token**.
+
+Swagger will automatically include the required `Authorization: Bearer secret` header with API requests.
+
+> NOTE: For the AddPurchase endpoint, the `id` field does not need to be supplied.
 
 ### Test the API Endpoints from UI.
 The UI application provides a user-friendly interface to interact with the API endpoints. It can be accessed at http://localhost:8085/. This allows for testing the API through a visual interface, which can be particularly useful for validating end-to-end workflows and user interactions.

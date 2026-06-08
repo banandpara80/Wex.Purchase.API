@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using Wex.Purchase.BusinessModels;
 using Wex.Purchase.API.Models;
 using Wex.Purchase.Service;
@@ -13,6 +14,7 @@ namespace Wex.Purchase.API.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/v1/purchase")]
+[Authorize]
 [Consumes("application/json")]
 [Produces("application/json")]
 [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
