@@ -95,7 +95,7 @@ This command will start all required services, including:
 
 * Application services
 * Supporting infrastructure
-* Databases (if configured)
+* Databases
 * Observability components
 * UI components
 
@@ -111,7 +111,7 @@ After startup, the following components will be available:
 | Swagger UI              | Interactive API documentation and testing  | http://localhost:8080/swagger
 | UI Application          | Visual interface for application workflows | http://localhost:8085/
 | Health Endpoints        | Service health monitoring                  | http://localhost:8080/health
-| Observability Dashboard | Real-time logs and monitoring              |  http://localhost:8081/
+| Observability Dashboard | Real-time logs and monitoring              | http://localhost:8081/
 | ----------------------- | ------------------------------------------ |--------------------------------
 
 > Refer to the Docker Compose configuration for the exact ports exposed by each service.
@@ -119,6 +119,14 @@ After startup, the following components will be available:
 ---
 
 ## Testing
+
+### Test the API Endpoints from Swagger UI.
+The API endpoints can be tested directly from the Swagger UI at http://localhost:8080/swagger. This allows for interactive testing of all available API operations, including the ability to input parameters and view responses in real-time.
+NOTE: For AddPurchase endpoint, the "id" field NEED NOT be passed.
+
+### Test the API Endpoints from UI.
+The UI application provides a user-friendly interface to interact with the API endpoints. It can be accessed at http://localhost:8085/. This allows for testing the API through a visual interface, which can be particularly useful for validating end-to-end workflows and user interactions.
+
 
 ### Run Unit Tests
 Run the following command from solution root ```Wex.Purchase.API```. Alternatively, the tests can be run from Visual Studio
