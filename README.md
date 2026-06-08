@@ -215,6 +215,7 @@ This framework includes enterprise-grade operational capabilities such as:
 * Global error handling
 * Health checks
 * Swagger/OpenAPI documentation
+* Security
 * Real-time observability
 * Circuit breaker patterns
 * Rate limiting
@@ -231,6 +232,7 @@ These features provide a strong foundation for building, testing, deploying, and
 * Extensible by design
 * Production-ready from day one
 * Developer-friendly setup
+* API Security
 * Observable and maintainable
 * Resilient under failure conditions
 * Easy local development experience
