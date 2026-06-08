@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Configuration;
 using System.Security.Claims;
 using System.Text.Encodings.Web;
 
@@ -8,20 +9,25 @@ namespace Wex.Purchase.API.Authentication;
 
 /// <summary>
 /// Custom authentication handler for Bearer token validation.
-/// Validates incoming requests with "Authorization: Bearer secret" header.
+/// Validates incoming requests with "Authorization: Bearer {token}" header.
+/// Token is read from configuration key 'Authentication:BearerToken' with fallback to 'secret'.
 /// </summary>
 public class BearerAuthenticationHandler : AuthenticationHandler<AuthenticationSchemeOptions>
 {
     private const string AuthorizationHeaderName = "Authorization";
     private const string BearerScheme = "Bearer";
-    private const string ValidToken = "secret";
+    private readonly string _validToken;
 
     public BearerAuthenticationHandler(
         IOptionsMonitor<AuthenticationSchemeOptions> options,
         ILoggerFactory logger,
-        UrlEncoder encoder)
+        UrlEncoder encoder,
+        
+        IConfiguration configuration)
         : base(options, logger, encoder)
     {
+        // Read token from configuration; fallback to 'secret' if not set
+        _validToken = configuration["Authentication:BearerToken"] ?? "secret";
     }
 
     /// <summary>
@@ -42,7 +48,7 @@ public class BearerAuthenticationHandler : AuthenticationHandler<AuthenticationS
 
         var token = authHeaderValue.Substring(BearerScheme.Length).Trim();
 
-        if (token != ValidToken)
+        if (!string.Equals(token, _validToken, StringComparison.Ordinal))
         {
             return Task.FromResult(AuthenticateResult.Fail("Invalid token"));
         }
