@@ -96,7 +96,7 @@ cd Wex.Purchase.API
 Start the complete application stack using Docker Compose:
 
 ```bash
-docker compose up -d
+docker compose up  --build -d
 ```
 
 This command will start all required services, including:
@@ -244,7 +244,7 @@ These features provide a strong foundation for building, testing, deploying, and
 
 ```bash
 # Start all services
-docker compose up -d
+docker compose up --build -d
 
 # View logs
 docker compose logs -f
