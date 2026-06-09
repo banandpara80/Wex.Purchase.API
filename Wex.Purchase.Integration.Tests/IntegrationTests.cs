@@ -90,35 +90,6 @@ public class IntegrationTests
         }
     }
 
-    public async Task AddAndGetPurchase_UsingInMemoryDb_Works()
-    {
-        await using var factory = new CustomWebApplicationFactory();
-        using var client = factory.CreateClient();
-
-        var purchase = new PurchaseDTO
-        {
-            Description = "InMemory Integration Purchase",
-            PurchaseAmount = 45.67m,
-            TransactionDate = DateTime.UtcNow
-        };
-
-        var postResp = await client.PostAsJsonAsync("/api/v1/purchase", purchase);
-        Assert.Equal(HttpStatusCode.Created, postResp.StatusCode);
-
-        var created = await postResp.Content.ReadFromJsonAsync<PurchaseDTO>();
-        Assert.NotNull(created);
-        Assert.NotEqual(Guid.Empty, created.Id);
-
-        var getResp = await client.GetAsync($"/api/v1/purchase/{created.Id}");
-        Assert.Equal(HttpStatusCode.OK, getResp.StatusCode);
-
-        var fetched = await getResp.Content.ReadFromJsonAsync<PurchaseDTO>();
-        Assert.NotNull(fetched);
-        Assert.Equal(created.Id, fetched.Id);
-        Assert.Equal(purchase.Description, fetched.Description);
-        Assert.Equal(purchase.PurchaseAmount, fetched.PurchaseAmount);
-    }
-
     /// <summary>
     /// Integration test for the GET /transactions/with-conversions endpoint.
     /// Creates purchase records and verifies they can be retrieved with exchange rate conversions.

@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Serialization;
+using Wex.Purchase.BusinessModels.Validators;
 
 namespace Wex.Purchase.BusinessModels;
 
@@ -27,6 +28,7 @@ public class PurchaseDTO : IValidatableObject
     /// Gets or sets the transaction date of the purchase.
     /// </summary>
     [Required(ErrorMessage = "TransactionDate is required")]
+    [NotFutureDate]
     public DateTime TransactionDate { get; set; }
 
     /// <summary>
@@ -57,5 +59,5 @@ public class PurchaseDTO : IValidatableObject
         }
        
         return results;
- }
+    }
 }

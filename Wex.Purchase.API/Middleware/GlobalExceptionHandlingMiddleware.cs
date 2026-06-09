@@ -74,6 +74,7 @@ public class GlobalExceptionHandlingMiddleware
                 context.Response.StatusCode = StatusCodes.Status400BadRequest;
                 response.Status = StatusCodes.Status400BadRequest;
                 response.Title = "Duplicate Purchase";
+                response.Detail = validationEx.Message;
                 response.Errors = new List<string>() { validationEx.Message };
                 Log.Warning("Duplicate Purchase: {@Message}", validationEx.Message);
                 break;
@@ -104,7 +105,7 @@ public class GlobalExceptionHandlingMiddleware
         }
 
         // Always include exception details in the response body for integration tests so the test can inspect the error.
-        response.Detail = exception.ToString();
+        //response.Detail = exception.ToString();
 
         var jsonResponse = JsonSerializer.Serialize(response);
         return context.Response.WriteAsync(jsonResponse);

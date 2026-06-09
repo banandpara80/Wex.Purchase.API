@@ -198,19 +198,69 @@ public class PurchaseServiceTests
     /// Validates that service properly delegates retrieval to the manager.
     /// </summary>
     
-    /// <summary>
-    /// Test: AddPurchase should propagate validation exceptions from the manager.
-    /// Validates that service doesn't suppress manager-layer exceptions.
-    /// </summary>
-    [Fact]
-    public async Task AddPurchase_ManagerThrowsValidationException_PropagatesToService()
-    {
-        // Arrange
-        _mockPurchaseManager.Setup(m => m.AddPurchase(It.IsAny<PurchaseDTO>(), It.IsAny<CancellationToken>())).ThrowsAsync(new PurchaseValidationException("validation failed", new List<string> { "err" }));
+         /// <summary>
+         /// Test: AddPurchase should propagate validation exceptions from the manager.
+         /// Validates that service doesn't suppress manager-layer exceptions.
+         /// </summary>
+         [Fact]
+         public async Task AddPurchase_ManagerThrowsValidationException_PropagatesToService()
+         {
+             // Arrange
+             _mockPurchaseManager.Setup(m => m.AddPurchase(It.IsAny<PurchaseDTO>(), It.IsAny<CancellationToken>())).ThrowsAsync(new PurchaseValidationException("validation failed", new List<string> { "err" }));
 
-        var validDto = new PurchaseDTO { Id = Guid.NewGuid(), Description = "Test", PurchaseAmount = 1.0m, TransactionDate = DateTime.Now }; 
+             var validDto = new PurchaseDTO { Id = Guid.NewGuid(), Description = "Test", PurchaseAmount = 1.0m, TransactionDate = DateTime.Now }; 
 
-        // Act & Assert
-        await Assert.ThrowsAsync<PurchaseValidationException>(async () => await _purchaseService.AddPurchase(validDto));
+             // Act & Assert
+             await Assert.ThrowsAsync<PurchaseValidationException>(async () => await _purchaseService.AddPurchase(validDto));
+         }
+
+         /// <summary>
+         /// Test: AddPurchase should reject a DTO with a future TransactionDate.
+         /// Validates that the NotFutureDate validation attribute prevents future dates.
+         /// </summary>
+         [Fact]
+         public async Task AddPurchase_FutureTransactionDate_ThrowsPurchaseValidationException()
+         {
+             // Arrange
+             var futureDate = DateTime.Now.AddDays(1);
+             var dto = new PurchaseDTO { Id = Guid.NewGuid(), Description = "Future Purchase", PurchaseAmount = 100.0m, TransactionDate = futureDate };
+
+             // Act & Assert
+             await Assert.ThrowsAsync<PurchaseValidationException>(async () => await _purchaseService.AddPurchase(dto));
+         }
+
+         /// <summary>
+         /// Test: AddPurchase should reject a DTO with a distant future TransactionDate.
+         /// Validates that the NotFutureDate validation attribute works for any future date, not just tomorrow.
+         /// </summary>
+         [Fact]
+         public async Task AddPurchase_DistantFutureTransactionDate_ThrowsPurchaseValidationException()
+         {
+             // Arrange
+             var distantFutureDate = DateTime.Now.AddYears(2);
+             var dto = new PurchaseDTO { Id = Guid.NewGuid(), Description = "Year-Ahead Purchase", PurchaseAmount = 500.0m, TransactionDate = distantFutureDate };
+
+             // Act & Assert
+             await Assert.ThrowsAsync<PurchaseValidationException>(async () => await _purchaseService.AddPurchase(dto));
+         }
+
+         /// <summary>
+         /// Test: AddPurchase should accept a DTO with a past TransactionDate.
+         /// Validates that the NotFutureDate validation attribute allows past dates.
+         /// </summary>
+         [Fact]
+         public async Task AddPurchase_PastTransactionDate_Valid()
+         {
+             // Arrange
+             var pastDate = DateTime.Now.AddDays(-10);
+             var dto = new PurchaseDTO { Id = Guid.NewGuid(), Description = "Past Purchase", PurchaseAmount = 75.5m, TransactionDate = pastDate };
+             _mockPurchaseManager.Setup(m => m.AddPurchase(It.IsAny<PurchaseDTO>(), It.IsAny<CancellationToken>())).ReturnsAsync((PurchaseDTO p, CancellationToken ct) => p);
+
+             // Act
+             var result = await _purchaseService.AddPurchase(dto);
+
+             // Assert
+             Assert.Equal(pastDate, result.TransactionDate);
+             _mockPurchaseManager.Verify(m => m.AddPurchase(It.IsAny<PurchaseDTO>(), It.IsAny<CancellationToken>()), Times.Once);
+         }
     }
-}
