@@ -235,7 +235,15 @@
         {
             var client = HttpClientFactory.CreateClient("ApiClient");
 
-            var response = await client.PostAsJsonAsync("api/v1/purchase/transactions/with-conversions", request);
+            
+            var dto = new PurchaseRequestDTO
+            {
+                Ids = purchaseRequestModel.Ids,
+                Currency = purchaseRequestModel.Currency 
+            };
+
+
+            var response = await client.PostAsJsonAsync("api/v1/purchase/transactions/with-conversions", dto);
             if (response.IsSuccessStatusCode)
             {
                 convertedTransactions = await response.Content.ReadFromJsonAsync<List<PurchaseWithExchangeRateDTO>>();
