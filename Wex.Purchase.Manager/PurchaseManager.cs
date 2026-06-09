@@ -61,9 +61,13 @@ namespace Wex.Purchase.Manager
         {
             PurchaseBO purchaseBO = await _purchaseRepository.GetByIdAsync(id, cancellationToken);
 
-            PurchaseDTO purchaseDTO = PurchaseMapper.MapToPurchaseDTO(purchaseBO);
+            PurchaseDTO purchaseDTO = null;
 
-            return purchaseDTO;
+            if(purchaseBO != null)
+            {
+                purchaseDTO = PurchaseMapper.MapToPurchaseDTO(purchaseBO);
+            }
+            return purchaseDTO; 
         }
 
         /// <summary>

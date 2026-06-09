@@ -136,7 +136,6 @@ public static class Extensions
         using (var scope = app.Services.CreateScope())
         {
             var context = scope.ServiceProvider.GetRequiredService<PurchaseDbContext>();
-            //context.Database.EnsureDeleted();
             context.Database.EnsureCreated();
         }
 
