@@ -54,6 +54,12 @@ public class PurchaseController : ControllerBase
 
         PurchaseDTO purchaseDTO = await _purchaseService.GetPurchaseOrderById(id);
 
+        if(purchaseDTO == null)
+        {
+            _logger.Warning("Purchase with id {Id} not found", id);
+            return NotFound(new ErrorResponse { Title = "Purchase Not found", Errors = new List<string> { $"Purchase with id {id} not found" } });
+        }
+
         return Ok(purchaseDTO);
     }
 

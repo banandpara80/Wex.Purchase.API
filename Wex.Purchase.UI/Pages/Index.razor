@@ -247,8 +247,12 @@
             if (response.IsSuccessStatusCode)
             {
                 convertedTransactions = await response.Content.ReadFromJsonAsync<List<PurchaseWithExchangeRateDTO>>();
+                if (convertedTransactions?.Count == 0)
+                {
+                    apiErrors2 = new List<string> { "No transactions found for the provided Ids." };
+                };
                 apiErrors.Clear();
-                apiErrors2.Clear();
+               
             }
             else
             {

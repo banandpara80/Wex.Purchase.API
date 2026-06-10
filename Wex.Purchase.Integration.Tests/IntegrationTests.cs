@@ -636,7 +636,7 @@ public class IntegrationTests
         };
 
         // Act: POST with correct API key
-        client.DefaultRequestHeaders.Add("Authorization", "Bearer your-secret-api-key-here");
+        client.DefaultRequestHeaders.Add("Authorization", "Bearer secret");
         var response = await client.PostAsJsonAsync("/api/v1/purchase", purchase);
 
         // Assert
